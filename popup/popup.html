@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="root">
+    <div class="header">
+      <div class="brand">LeetCode Enforcer</div>
+      <a class="gear" href="#" id="open-options" title="Settings">⚙</a>
+    </div>
+
+    <div class="sync-err" id="sync-err" hidden>
+      <span id="sync-err-msg"></span>
+      <button id="retry-sync">Retry</button>
+    </div>
+
+    <div class="progress-card">
+      <div class="progress-row">
+        <div class="big" id="progress-text">0 / 1</div>
+        <div class="streak" id="streak">🔥 0</div>
+      </div>
+      <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+      <div class="sub" id="block-state">…</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Review queue</div>
+        <div class="section-tag" id="due-count">0</div>
+      </div>
+      <div id="due-list" class="due-list"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Log a problem</div>
+      </div>
+      <div class="manual">
+        <input id="manual-query" placeholder="Search by # or title…" autocomplete="off">
+        <div id="manual-results" class="manual-results"></div>
+        <div id="manual-form" hidden>
+          <div class="picked" id="manual-picked"></div>
+          <div class="row">
+            <label>Confidence</label>
+            <div class="segs" id="manual-confidence">
+              <button data-val="1">1</button><button data-val="2">2</button>
+              <button data-val="3">3</button><button data-val="4">4</button>
+              <button data-val="5">5</button>
+            </div>
+          </div>
+          <textarea id="manual-notes" placeholder="Notes…"></textarea>
+          <div class="row toggles">
+            <label><input type="checkbox" id="manual-need"> Need review</label>
+            <label><input type="checkbox" id="manual-master"> Mastered</label>
+          </div>
+          <div class="row actions">
+            <button class="ghost" id="manual-cancel">Cancel</button>
+            <button class="primary" id="manual-save">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section footer">
+      <a href="#" id="open-sheet" target="_blank">📊 Open spreadsheet</a>
+      <a href="#" id="import-history">⤵ Import LC history</a>
+    </div>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
