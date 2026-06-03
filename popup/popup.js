@@ -25,9 +25,12 @@ async function render() {
       ? `Override active until ${new Date(state.overrideActiveUntil).toLocaleTimeString()}.`
       : 'Quota met — sites unblocked.');
 
-  if (state.lastSyncError) {
+  if (state.lastSyncError || state.lastGithubError) {
     $('#sync-err').hidden = false;
-    $('#sync-err-msg').textContent = 'Sync failed: ' + state.lastSyncError;
+    const parts = [];
+    if (state.lastSyncError) parts.push('Sheets: ' + state.lastSyncError);
+    if (state.lastGithubError) parts.push('GitHub: ' + state.lastGithubError);
+    $('#sync-err-msg').textContent = parts.join(' · ');
   } else {
     $('#sync-err').hidden = true;
   }

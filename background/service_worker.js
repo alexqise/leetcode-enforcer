@@ -13,6 +13,10 @@ import {
   fetchProblemMeta, fetchProblemCatalog
 } from '../lib/leetcode_api.js';
 import { computeStats } from '../lib/stats.js';
+import {
+  fetchUser as ghFetchUser, ensureRepo, pushSolution, langToExt,
+  slugFolder, buildProblemReadme, buildCommitMessage
+} from '../lib/github.js';
 
 const ALARM_DAILY_RESET = 'lce.dailyReset';
 const ALARM_OVERRIDE_END = 'lce.overrideEnd';
@@ -74,6 +78,9 @@ async function handleMessage(msg, sender) {
     case 'markMastered': return markMastered(msg.slug);
     case 'unmarkMastered': return unmarkMastered(msg.slug);
     case 'resetAll': return resetAllData();
+    case 'connectGithub': return connectGithub(msg.token, msg.repoName);
+    case 'disconnectGithub': return disconnectGithub();
+    case 'testGithub': return testGithub();
     default: throw new Error(`Unknown message type: ${msg.type}`);
   }
 }
@@ -129,6 +136,7 @@ async function recordSolve(payload) {
 
   await syncProblemToSheet(updated);
   await syncStatsToSheet();
+  await syncProblemToGithub(updated, payload);
 
   return { ok: true, problem: updated };
 }
@@ -397,12 +405,87 @@ async function syncStatsToSheet() {
 }
 
 async function setBadgeOk() {
+  const state = await getState();
+  if (state.lastSyncError || state.lastGithubError) return;
   chrome.action.setBadgeText({ text: '' });
 }
 
 async function setBadgeError() {
   chrome.action.setBadgeText({ text: '!' });
   chrome.action.setBadgeBackgroundColor({ color: '#D9534F' });
+}
+
+async function connectGithub(token, repoName) {
+  try {
+    if (!token) throw new Error('Token required');
+    const user = await ghFetchUser(token);
+    if (!user?.login) throw new Error('Invalid token');
+    const settings = await getSettings();
+    const repo = repoName || settings.githubRepo || 'leetcode-enforcer-solutions';
+    const repoData = await ensureRepo(token, user.login, repo);
+    await setSettings({
+      githubEnabled: true,
+      githubToken: token,
+      githubOwner: user.login,
+      githubRepo: repo,
+      githubBranch: repoData.default_branch || 'main',
+      githubRepoUrl: repoData.html_url
+    });
+    await setState({ lastGithubError: null });
+    return { ok: true, owner: user.login, repo, url: repoData.html_url };
+  } catch (e) {
+    await setState({ lastGithubError: e.message });
+    return { ok: false, error: e.message };
+  }
+}
+
+async function disconnectGithub() {
+  await setSettings({
+    githubEnabled: false, githubToken: null, githubOwner: null,
+    githubRepoUrl: null
+  });
+  await setState({ lastGithubError: null, lastGithubCommitUrl: null });
+  return { ok: true };
+}
+
+async function testGithub() {
+  try {
+    const { githubToken } = await getSettings();
+    if (!githubToken) throw new Error('Not connected');
+    const user = await ghFetchUser(githubToken);
+    return { ok: true, login: user.login };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function syncProblemToGithub(problem, payload) {
+  const settings = await getSettings();
+  if (!settings.githubEnabled || !settings.githubToken) return;
+  if (!payload.code || !payload.lang) return;
+
+  try {
+    const ext = langToExt(payload.lang);
+    const folder = slugFolder({ number: problem.number, slug: payload.slug });
+    const files = [
+      { path: `solution.${ext}`, content: payload.code },
+      { path: 'README.md', content: buildProblemReadme(problem) }
+    ];
+    const message = buildCommitMessage(problem, payload.confidence);
+
+    const result = await pushSolution(settings.githubToken, {
+      owner: settings.githubOwner,
+      repo: settings.githubRepo,
+      branch: settings.githubBranch,
+      folder, files, message
+    });
+    await setState({ lastGithubError: null, lastGithubCommitUrl: result.url });
+    await setBadgeOk();
+  } catch (e) {
+    console.error('github push failed', e);
+    await setState({ lastGithubError: e.message });
+    await setBadgeError();
+  }
 }
 
 function computeNextResetISO(hour = 3) {

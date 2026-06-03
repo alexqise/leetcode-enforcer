@@ -38,6 +38,23 @@ function hydrate() {
     $('#sheet-status').textContent = 'Not connected';
     $('#open-sheet-link').hidden = true;
   }
+
+  if (settings.githubEnabled && settings.githubToken) {
+    $('#gh-disconnected').hidden = true;
+    $('#gh-connected').hidden = false;
+    $('#gh-login').textContent = settings.githubOwner || '?';
+    $('#gh-repo-link').href = settings.githubRepoUrl || '#';
+    const state = await chrome.storage.local.get('state').then(r => r.state || {});
+    if (state.lastGithubCommitUrl) {
+      $('#gh-last-commit').innerHTML = `Last commit: <a href="${state.lastGithubCommitUrl}" target="_blank">view</a>`;
+    } else {
+      $('#gh-last-commit').textContent = '';
+    }
+  } else {
+    $('#gh-disconnected').hidden = false;
+    $('#gh-connected').hidden = true;
+    $('#gh-repo').value = settings.githubRepo || 'leetcode-enforcer-solutions';
+  }
 }
 
 function renderBlocklist() {
@@ -88,6 +105,33 @@ function wire() {
   });
 
   $('#save').addEventListener('click', save);
+
+  $('#gh-connect').addEventListener('click', async () => {
+    const token = $('#gh-token').value.trim();
+    const repoName = $('#gh-repo').value.trim() || 'leetcode-enforcer-solutions';
+    if (!token) { alert('Paste a GitHub PAT first.'); return; }
+    $('#gh-connect').disabled = true;
+    $('#gh-connect').textContent = 'Connecting…';
+    const res = await send({ type: 'connectGithub', token, repoName });
+    $('#gh-connect').disabled = false;
+    $('#gh-connect').textContent = 'Connect GitHub';
+    if (!res.ok) { alert('GitHub connect failed: ' + res.error); return; }
+    $('#gh-token').value = '';
+    settings = await getSettings();
+    hydrate();
+    alert(`Connected as ${res.owner}. Repo: ${res.repo}`);
+  });
+  $('#gh-disconnect').addEventListener('click', async () => {
+    if (!confirm('Disconnect GitHub? Local PAT will be deleted. The repo and its contents are kept.')) return;
+    await send({ type: 'disconnectGithub' });
+    settings = await getSettings();
+    hydrate();
+  });
+  $('#gh-test').addEventListener('click', async () => {
+    const res = await send({ type: 'testGithub' });
+    if (res.ok) alert('OK — connected as ' + res.login);
+    else alert('Test failed: ' + res.error);
+  });
 }
 
 function addSite() {

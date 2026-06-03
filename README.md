@@ -14,6 +14,7 @@ LC problems are expensive (20-40 min each), not 5-second Anki flashcards — so 
 - **Spaced repetition** with a fixed escalating ladder: 1d → 3d → 7d → 14d → 30d
 - **Three review surfaces**: block screen, popup, inline LC banner
 - **Google Sheets sync** — Notion-styled spreadsheet, write-through, fail loud
+- **Optional GitHub sync** — auto-created **private** repo, one commit per accepted submission, code + per-problem README
 - **Emergency override**: 1/day, 10 min, requires typing "I am being weak"
 - **Strict streak** tracking with 03:00 local-time daily reset
 
@@ -55,6 +56,38 @@ After loading the extension, the onboarding wizard opens in a new tab:
 3. **Confirm blocklist** — uncheck any you don't want, add custom sites
 
 After finishing, the popup opens with an optional "Import LeetCode history" button. Make sure you are logged into leetcode.com in the same browser for history import and daily-challenge fetching to work.
+
+### 4. Optional — connect GitHub (push code to a private repo)
+
+Each accepted submission pushes the code + a per-problem README as a single commit to a **private** repo. The repo is auto-created on first connect.
+
+1. Create a fine-grained PAT at https://github.com/settings/tokens?type=beta
+2. Repository access: **All repositories** (or **Only select repositories** if you're picky — but the extension needs to create the repo on first use, which requires All-repos for `Administration: write`)
+3. Permissions (Repository):
+   - **Administration**: Read and write (needed to create the repo)
+   - **Contents**: Read and write (needed to push commits)
+   - **Metadata**: Read-only (granted automatically)
+4. Paste the token into the GitHub section of the onboarding final step, or any time later from the options page
+5. (Optional) Customize the repo name — default is `leetcode-enforcer-solutions`
+
+The PAT is stored in `chrome.storage.local`, only visible to this extension. Disconnect anytime from options to delete the token locally — the repo and its history are untouched.
+
+#### Repo layout
+
+```
+leetcode-enforcer-solutions/
+├── 0001-two-sum/
+│   ├── solution.py
+│   └── README.md
+├── 0002-add-two-numbers/
+│   ├── solution.cpp
+│   └── README.md
+└── …
+```
+
+Each commit message: `Solve 1. Two Sum [Easy] · 4/5`. The per-problem README lists difficulty, topics, first solved date, accumulated notes, current SRS state, and confidence.
+
+Manual entries and imported history are not pushed (no code captured). Multiple languages on the same problem produce `solution.py` and `solution.cpp` etc. side by side; resubmitting in the same language overwrites that file.
 
 ## Daily flow
 

@@ -191,6 +191,19 @@ Shows, top to bottom:
 - Same fields as inline overlay
 - Used for: mobile solves, paper interviews, other platforms
 
+### GitHub sync (optional)
+- **Auth**: Personal Access Token (fine-grained). User pastes from `github.com/settings/tokens`. No backend/OAuth required.
+- **Required PAT scopes**: `Contents: Read and write`, `Administration: Read and write`, `Metadata: Read` (auto).
+- **Repo**: auto-created via `POST /user/repos` with `private: true, auto_init: true`. Default name `leetcode-enforcer-solutions`, editable.
+- **Trigger**: each `recordSolve` with non-null `code` + `lang` (i.e., only inline-detected solves — manual entries and history-imported items skipped).
+- **One commit per submission** built with the Git Data API (blob → tree → commit → ref PATCH), so two files land atomically:
+  - `<padded-number>-<slug>/solution.<ext>` — the typed code
+  - `<padded-number>-<slug>/README.md` — title, link, difficulty, topics, first solved, last reviewed, times reviewed, latest confidence, status, accumulated notes
+- **Commit message**: `Solve <num>. <Title> [<Difficulty>] · <confidence>/5`
+- **Sync model**: same as Sheets — write-through, fail loud. Errors surface on extension badge + popup banner, separate `state.lastGithubError` from Sheets error.
+- **Re-submissions in same language**: overwrite `solution.<ext>`. Different language → new file alongside. README rewritten each time with latest accumulated notes.
+- **Code capture**: the MAIN-world fetch patch sniffs the `/problems/<slug>/submit/` POST body to grab `typed_code`, `lang`, `question_id`; pairs them with the subsequent `Accepted` verdict by recency (60s window, no concurrent submits on LC). Inline content script forwards code + lang to background as part of the `recordSolve` payload.
+
 ## Google Sheets
 
 ### Auth
@@ -286,7 +299,13 @@ After finish: popup opens automatically with `"✅ You're ready"` and a `"Import
     overrideDurationMin: 10,
     overridePhrase: "I am being weak",
     sheetId: "abc123...",
-    quotaResetHour: 3
+    quotaResetHour: 3,
+    githubEnabled: false,
+    githubToken: null,
+    githubOwner: null,
+    githubRepo: "leetcode-enforcer-solutions",
+    githubBranch: "main",
+    githubRepoUrl: null
   },
   state: {
     quotaResetAt: "2026-06-04T03:00:00-04:00",
@@ -298,6 +317,8 @@ After finish: popup opens automatically with `"✅ You're ready"` and a `"Import
     streakDays: 0,
     streakLastUpdated: "2026-06-03",
     lastSyncError: null,
+    lastGithubError: null,
+    lastGithubCommitUrl: null,
     needsRatingQueue: []        // detected but unrated submissions
   },
   problems: {
@@ -349,3 +370,5 @@ End-to-end test plan after implementation:
 - Apps Script triggers on the sheet side
 - AI-powered problem analysis or topic suggestions
 - Two-way settings sync (sheet → extension)
+- GitHub OAuth (uses PAT — no backend required)
+- Squashing multiple intra-day resubmissions into a single commit

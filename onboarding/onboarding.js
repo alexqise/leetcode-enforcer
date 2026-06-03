@@ -73,6 +73,22 @@ function wire() {
       $('#import-status').textContent = `✓ Imported ${res.imported} problems as Mastered. You can un-master from the popup later.`;
     }
   });
+
+  $('#gh-connect').addEventListener('click', async (e) => {
+    const token = $('#gh-token').value.trim();
+    const repoName = $('#gh-repo').value.trim() || 'leetcode-enforcer-solutions';
+    if (!token) { $('#gh-status').textContent = 'Paste a token first.'; return; }
+    e.target.disabled = true;
+    $('#gh-status').textContent = 'Connecting…';
+    const res = await send({ type: 'connectGithub', token, repoName });
+    e.target.disabled = false;
+    if (!res.ok) {
+      $('#gh-status').textContent = '✗ ' + res.error;
+    } else {
+      $('#gh-token').value = '';
+      $('#gh-status').innerHTML = `✓ Connected · <a href="${res.url}" target="_blank">${res.owner}/${res.repo}</a>`;
+    }
+  });
 }
 
 function goto(step) {

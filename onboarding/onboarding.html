@@ -62,6 +62,18 @@
         <button class="primary" id="import-history">Import LC history first</button>
       </div>
       <div class="status" id="import-status"></div>
+
+      <div class="gh-block">
+        <div class="section-label">Optional · sync code to GitHub</div>
+        <p class="hint">Push every accepted submission to a private repo as a single commit. Create a fine-grained PAT with <code>Contents</code> and <code>Administration</code> write access, then paste it below.</p>
+        <input type="password" id="gh-token" placeholder="github_pat_… or ghp_…">
+        <div class="row">
+          <input type="text" id="gh-repo" value="leetcode-enforcer-solutions" placeholder="repo name">
+          <button class="primary" id="gh-connect">Connect</button>
+        </div>
+        <div class="status" id="gh-status"></div>
+        <a href="https://github.com/settings/tokens?type=beta" target="_blank" class="link-hint">Create a fine-grained PAT →</a>
+      </div>
     </div>
   </div>
   <script type="module" src="onboarding.js"></script>

@@ -79,6 +79,35 @@
     </section>
 
     <section>
+      <h2>GitHub sync <span class="opt-tag">optional</span></h2>
+      <p class="hint">Pushes each accepted submission to a <strong>private</strong> repo (auto-created if missing). One commit per submission, containing the code + a per-problem README.</p>
+      <div id="gh-disconnected">
+        <div class="row">
+          <label>Personal Access Token</label>
+          <input type="password" id="gh-token" placeholder="github_pat_… or ghp_…">
+        </div>
+        <div class="row">
+          <label>Repo name</label>
+          <input type="text" id="gh-repo" value="leetcode-enforcer-solutions">
+        </div>
+        <div class="row gh-actions">
+          <button id="gh-connect" class="primary">Connect GitHub</button>
+          <a href="https://github.com/settings/tokens?type=beta" target="_blank" class="link-hint">Create a fine-grained PAT →</a>
+        </div>
+        <div class="hint">Required scope: <code>Contents: Read and write</code> · <code>Administration: Read and write</code> (to create the repo).</div>
+      </div>
+      <div id="gh-connected" hidden>
+        <div class="row sheet-row">
+          <span id="gh-status">Connected as <strong id="gh-login">…</strong></span>
+          <a href="#" id="gh-repo-link" target="_blank">Open repo</a>
+          <button id="gh-test" class="ghost">Test</button>
+          <button id="gh-disconnect" class="ghost">Disconnect</button>
+        </div>
+        <div class="hint" id="gh-last-commit"></div>
+      </div>
+    </section>
+
+    <section>
       <h2>Google Sheets</h2>
       <div class="row sheet-row">
         <span id="sheet-status">Not connected</span>

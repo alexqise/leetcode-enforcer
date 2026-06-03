@@ -2,6 +2,7 @@
   let overlayHost = null;
   let bannerHost = null;
   let processedAt = 0;
+  let lastAcceptedPayload = null;
 
   init();
 
@@ -26,6 +27,7 @@
       const now = Date.now();
       if (now - processedAt < 2000) return;
       processedAt = now;
+      lastAcceptedPayload = m.payload || {};
       showRatingOverlay();
     }
   }
@@ -171,7 +173,12 @@
       const needReview = shadow.querySelector('[data-id="needReview"]').checked;
       const mastered = shadow.querySelector('[data-id="mastered"]').checked;
 
-      const payload = { ...meta, confidence, notes, needReview, mastered };
+      const payload = {
+        ...meta,
+        confidence, notes, needReview, mastered,
+        code: lastAcceptedPayload?.code || null,
+        lang: lastAcceptedPayload?.lang || null
+      };
 
       const enriched = await maybeEnrichMeta(payload);
       const res = await sendMessage({ type: 'recordSolve', payload: enriched });

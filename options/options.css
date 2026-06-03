@@ -57,6 +57,20 @@ section h2 {
 .sheet-row #sheet-status { font-size: 13px; }
 .sheet-row #open-sheet-link { color: #37352F; text-decoration: underline; font-size: 13px; }
 
+.opt-tag {
+  font-size: 10px; background: #ECEAE4; color: #37352F;
+  padding: 2px 6px; border-radius: 4px; vertical-align: middle;
+  text-transform: none; letter-spacing: 0; font-weight: 600;
+  margin-left: 8px;
+}
+.gh-actions { display: flex; gap: 12px; align-items: center; }
+.link-hint { font-size: 12px; color: #37352F; opacity: .6; text-decoration: none; }
+.link-hint:hover { opacity: 1; text-decoration: underline; }
+code {
+  background: #F0EEE8; padding: 1px 5px; border-radius: 3px;
+  font-family: ui-monospace, monospace; font-size: 12px;
+}
+
 section.danger { border-color: #F0CECA; background: #FDF6F5; }
 .danger-btn {
   background: #B23A2E; color: white; border: 0; border-radius: 6px;

@@ -2,12 +2,31 @@
   if (window.__lceInjected) return;
   window.__lceInjected = true;
 
+  let lastSubmit = null;
+
   const origFetch = window.fetch;
   window.fetch = async function patchedFetch(...args) {
+    const reqUrl = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+    const reqMethod = (args[1]?.method || 'GET').toUpperCase();
+    const reqBody = args[1]?.body ? String(args[1].body) : '';
+
+    if (reqMethod === 'POST' && /\/problems\/[^/]+\/submit\/?$/.test(reqUrl)) {
+      try {
+        const parsed = JSON.parse(reqBody);
+        const slugMatch = reqUrl.match(/\/problems\/([^/]+)\//);
+        lastSubmit = {
+          slug: slugMatch ? slugMatch[1] : null,
+          lang: parsed.lang,
+          questionId: parsed.question_id,
+          code: parsed.typed_code,
+          submittedAt: Date.now()
+        };
+      } catch (e) { /* ignore */ }
+    }
+
     const res = await origFetch.apply(this, args);
+
     try {
-      const reqUrl = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-      const reqBody = args[1]?.body ? String(args[1].body) : '';
       const isSubmissionResult =
         /\/submissions\/detail\/\d+\/check\//.test(reqUrl) ||
         (reqUrl.includes('/graphql') && /submissionResult|checkSubmission/.test(reqBody));
@@ -17,10 +36,13 @@
         clone.json().then(data => {
           const result = extractResult(data);
           if (result && result.statusMsg === 'Accepted') {
+            const codeBundle = lastSubmit && (Date.now() - lastSubmit.submittedAt < 60000)
+              ? { code: lastSubmit.code, lang: lastSubmit.lang, slug: lastSubmit.slug }
+              : {};
             window.postMessage({
               source: 'lce-detector',
               event: 'accepted',
-              payload: result
+              payload: { ...result, ...codeBundle }
             }, '*');
           }
         }).catch(() => {});
