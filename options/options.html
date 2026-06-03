@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LeetCode Enforcer — Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="wrap">
+    <h1>LeetCode Enforcer</h1>
+    <p class="sub">Settings</p>
+
+    <section>
+      <h2>Daily quota</h2>
+      <div class="row">
+        <input type="range" id="quota" min="1" max="5" value="1">
+        <span id="quota-value">1</span> problem(s) / day
+      </div>
+      <label class="check">
+        <input type="checkbox" id="split-quota">
+        Separate review quota from new-solve quota
+      </label>
+      <div id="split-fields" hidden>
+        <div class="row">
+          <label>New solves / day</label>
+          <input type="number" id="new-solve-quota" min="0" max="10" value="1" class="small">
+        </div>
+        <div class="row">
+          <label>Reviews / day</label>
+          <input type="number" id="review-quota" min="0" max="10" value="0" class="small">
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Blocklist</h2>
+      <p class="hint">Sites that will redirect to the block page until your daily quota is met.</p>
+      <div id="blocklist" class="chips"></div>
+      <div class="row">
+        <input type="text" id="add-site" placeholder="example.com">
+        <button id="add-site-btn" class="primary">Add</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Spaced repetition</h2>
+      <div class="row">
+        <label>Interval ladder (days, comma-separated)</label>
+        <input type="text" id="ladder" placeholder="1, 3, 7, 14, 30">
+      </div>
+    </section>
+
+    <section>
+      <h2>Emergency override</h2>
+      <label class="check">
+        <input type="checkbox" id="override-enabled">
+        Enable override
+      </label>
+      <div class="row">
+        <label>Uses per day</label>
+        <input type="number" id="override-count" min="0" max="10" class="small">
+      </div>
+      <div class="row">
+        <label>Duration (minutes)</label>
+        <input type="number" id="override-duration" min="1" max="120" class="small">
+      </div>
+      <div class="row">
+        <label>Passphrase</label>
+        <input type="text" id="override-phrase">
+      </div>
+    </section>
+
+    <section>
+      <h2>Schedule</h2>
+      <div class="row">
+        <label>Daily reset hour (0–23, local time)</label>
+        <input type="number" id="reset-hour" min="0" max="23" class="small">
+      </div>
+    </section>
+
+    <section>
+      <h2>Google Sheets</h2>
+      <div class="row sheet-row">
+        <span id="sheet-status">Not connected</span>
+        <a href="#" id="open-sheet-link" hidden target="_blank">Open</a>
+        <button id="reconnect-sheet" class="ghost">Reconnect</button>
+        <button id="force-sync" class="ghost">Force re-sync</button>
+      </div>
+    </section>
+
+    <section class="danger">
+      <h2>Reset</h2>
+      <p class="hint">Wipe all local data. The spreadsheet is not deleted.</p>
+      <button id="reset-all" class="danger-btn">Reset all data</button>
+    </section>
+
+    <div class="footer">
+      <span id="save-status"></span>
+      <button id="save" class="primary">Save</button>
+    </div>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>
