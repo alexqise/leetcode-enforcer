@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "LeetCode Enforcer",
+  "version": "0.1.0",
+  "description": "Blocks distracting sites until you solve your daily LeetCode quota. Spaced repetition + Google Sheets sync.",
+  "permissions": [
+    "storage",
+    "identity",
+    "alarms",
+    "tabs",
+    "scripting",
+    "notifications",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "https://leetcode.com/*",
+    "https://sheets.googleapis.com/*",
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["content/leetcode_inject.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://leetcode.com/*"],
+      "js": ["content/leetcode_content.js"],
+      "css": ["content/overlay.css"],
+      "world": "ISOLATED",
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/leetcode_inject.js"],
+      "matches": ["https://leetcode.com/*"]
+    },
+    {
+      "resources": ["block/block.html", "block/block.css", "block/block.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "LeetCode Enforcer"
+  },
+  "options_page": "options/options.html",
+  "oauth2": {
+    "client_id": "REPLACE_WITH_YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
