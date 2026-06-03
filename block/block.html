@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Blocked — solve first</title>
+  <link rel="stylesheet" href="block.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="brand">LeetCode Enforcer</div>
+      <div class="streak" id="streak">🔥 0</div>
+    </div>
+
+    <div class="hero">
+      <div class="needed-row">
+        <span class="needed-num" id="needed-num">1</span>
+        <span class="needed-label" id="needed-label">problem left today</span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+      <div class="progress-sub" id="progress-sub">0 of 1 solved</div>
+    </div>
+
+    <div class="suggest-row">
+      <div class="card daily" id="daily-card">
+        <div class="card-label">⭐ Daily challenge</div>
+        <div class="card-title" id="daily-title">…</div>
+        <div class="card-meta" id="daily-meta"></div>
+        <a class="card-cta" id="daily-cta" target="_blank">Start →</a>
+      </div>
+      <div class="card random" id="random-card">
+        <div class="card-label">🎲 Try a random one</div>
+        <div class="card-title" id="random-title">…</div>
+        <div class="card-meta" id="random-meta"></div>
+        <a class="card-cta" id="random-cta" target="_blank">Start →</a>
+      </div>
+    </div>
+
+    <div class="reviews" id="reviews-block">
+      <div class="reviews-head">
+        <div class="section-label">📚 Reviews due</div>
+        <div class="hint">Doing one of these counts toward your quota too.</div>
+      </div>
+      <div id="due-list" class="due-list"></div>
+    </div>
+
+    <div class="emergency">
+      <div class="emergency-text">
+        <div class="section-label">Emergency override</div>
+        <div class="hint" id="override-hint">1 use left today · 10 minutes</div>
+      </div>
+      <button id="override-btn" class="override-btn">Override 10 min</button>
+    </div>
+
+    <div class="from-row" id="from-row" hidden>
+      You tried to open <span id="from-url"></span>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="override-modal" hidden>
+    <div class="modal">
+      <div class="modal-title">Sure?</div>
+      <p>Type the phrase below to override. The override will count and be logged.</p>
+      <div class="phrase-row"><code id="phrase-required"></code></div>
+      <input type="text" id="phrase-input" autocomplete="off" placeholder="Type the exact phrase">
+      <div class="modal-actions">
+        <button class="ghost" id="override-cancel">Cancel</button>
+        <button class="primary" id="override-confirm">Override</button>
+      </div>
+      <div class="modal-err" id="override-err"></div>
+    </div>
+  </div>
+
+  <script type="module" src="block.js"></script>
+</body>
+</html>
