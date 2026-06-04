@@ -6,7 +6,7 @@ import { mergeReview, newProblemDefaults, getDueProblems, isDue } from '../lib/s
 import { applyBlockRules, clearBlockRules } from '../lib/blocklist.js';
 import { getAuthToken } from '../lib/oauth.js';
 import {
-  createSpreadsheet, upsertProblemRow, bulkUpsertProblems, writeStatsData
+  createSpreadsheet, upsertProblemRow, bulkUpsertProblems, writeStatsData, applyStyles
 } from '../lib/sheets.js';
 import {
   fetchCurrentUser, fetchDailyChallenge, fetchAllAcceptedSubmissions,
@@ -75,6 +75,7 @@ async function handleMessage(msg, sender) {
     case 'updateSettings': return updateSettings(msg.patch);
     case 'forceSyncAll': return forceSyncAll();
     case 'retryLastSync': return retryLastSync();
+    case 'restyleSheet': return restyleSheet();
     case 'markMastered': return markMastered(msg.slug);
     case 'unmarkMastered': return unmarkMastered(msg.slug);
     case 'resetAll': return resetAllData();
@@ -343,6 +344,18 @@ async function forceSyncAll() {
 
 async function retryLastSync() {
   return forceSyncAll();
+}
+
+async function restyleSheet() {
+  try {
+    const { sheetId } = await getSettings();
+    if (!sheetId) throw new Error('Not connected to Sheets');
+    const token = await getAuthToken(true);
+    await applyStyles(token, sheetId);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 }
 
 async function markMastered(slug) {

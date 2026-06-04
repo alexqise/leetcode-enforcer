@@ -109,6 +109,16 @@ function wire() {
     alert(res.error ? 'Sync failed: ' + res.error : 'Synced.');
   });
 
+  $('#restyle-sheet').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    const orig = e.target.textContent;
+    e.target.textContent = 'Restyling…';
+    const res = await send({ type: 'restyleSheet' });
+    e.target.disabled = false;
+    e.target.textContent = orig;
+    alert(res.ok ? 'Sheet restyled — refresh the spreadsheet tab.' : 'Restyle failed: ' + res.error);
+  });
+
   $('#reset-all').addEventListener('click', async () => {
     if (!confirm('Wipe ALL local data? This cannot be undone. The spreadsheet itself is not deleted.')) return;
     await send({ type: 'resetAll' });
