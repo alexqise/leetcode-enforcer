@@ -231,6 +231,28 @@ Click handler uses **document-level event delegation** (`document.addEventListen
 - Primary CTA: `--fg` bg, `--bg` text (inverted), 11px×20px padding, 14px font, 600 weight, 6px radius
 - Error state: 8px×12px padding, `rgba(242,111,111,0.08)` bg, `rgba(242,111,111,0.2)` border, `--hard` text
 
+### 5.11 — Settings card
+For options/settings surfaces. Each setting group lives in a self-contained card with a clear head/body split.
+- Container: `--surface` bg, 1px `--border`, 8px radius, `overflow: hidden`
+- **Card head:** padding 18px 22px 12px, bottom border 1px `--border`
+  - Title: 13px, weight 600, color `--fg`
+  - Subtitle: 12px, color `--fg-3`, line-height 1.5
+- **Card body:** padding 16px 22px 18px, `display: flex; flex-direction: column; gap: 12px`
+- Rows inside the body use `display: flex; gap: 12px; flex-wrap: wrap` with a left-side `label` of fixed min-width (~180px) and inputs in the remaining space.
+- Inline action rows (`.row.inline-actions`) keep the action button + a hint link adjacent.
+- A `tag` pill (10px, `--surface-2` bg, `--border`) can sit next to the title to mark "optional" or "beta".
+- Danger card variant: red-tinted top gradient + softened red border (`rgba(242,111,111,0.20)`). Hosts the danger-btn variant inside.
+
+### 5.12 — Modal (confirmation / destructive action)
+For the override modal and other gated confirmations.
+- Backdrop: `position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000`
+- Card: `--surface` bg, 1px `--border-2`, 12px radius, padding 24px, max-width 440px, shadow `0 24px 64px rgba(0,0,0,0.5)`
+- **Head row:** small mark icon (32×32, tinted by intent — `--medium` for warning, `--hard` for destructive) + title (16px, weight 600, letter-spacing -0.015em)
+- **Body:** 12.5px, `--fg-2`, line-height 1.55
+- For phrase-confirm modals: render the phrase in a `<code>` block at 12.5px in mono on `--bg` bg, followed by a mono-font input for the user to retype
+- **Actions row:** right-aligned ghost + primary button pair. Primary button uses `--hard` bg with `--bg` text when the action is destructive.
+- Error text: 11.5px, `--hard`, `min-height: 16px` so the layout doesn't shift when an error appears.
+
 ---
 
 ## 6 · Icons (NEVER emojis)
@@ -344,3 +366,4 @@ Then update this design.md to call out the exception under the relevant section.
 ## 12 · Changelog of guideline-level decisions
 
 - **2026-06-04** — Initial document. Captures viewer1's iterated design state. Source palette is the post-color-lift soft-black (`#131316` bg, etc). No-emoji rule established. Multi-state filter chip pattern documented. Reserved-space sort indicator pattern documented.
+- **2026-06-04** — Popup, options, and block pages migrated from the legacy Notion-light palette to the Linear-dark guideline. Sentence-case section labels everywhere; all emoji (🔥 ⭐ 🎲 📚 ✓ ✗ 👤 🔐) replaced with inline outline SVG icons. Streak chip standardized: flame SVG (`--medium` color) + mono count, both popup and block pages render it identically. Added §5.11 (Settings card pattern) and §5.12 (Modal pattern) to document the head/body card and the override-confirm modal first introduced in options/block.
