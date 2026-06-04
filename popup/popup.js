@@ -75,7 +75,7 @@ async function render() {
 function wire() {
   $('#open-options').addEventListener('click', (e) => {
     e.preventDefault();
-    chrome.runtime.openOptionsPage();
+    chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') });
   });
   $('#retry-sync').addEventListener('click', async () => {
     await send({ type: 'retryLastSync' });
