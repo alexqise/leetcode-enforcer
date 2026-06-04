@@ -14,9 +14,7 @@
     "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
-    "https://leetcode.com/*",
-    "https://sheets.googleapis.com/*",
-    "https://www.googleapis.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background/service_worker.js",
