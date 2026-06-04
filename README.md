@@ -22,22 +22,19 @@ LC problems are expensive (20-40 min each), not 5-second Anki flashcards — so 
 
 ### 1. Set up Google OAuth credentials
 
-The extension uses `chrome.identity` to talk to Google Sheets. You need to register your own OAuth client.
+The extension uses `chrome.identity.launchWebAuthFlow` to talk to Google Sheets. You need to register your own OAuth client as a **Web application** (not "Chrome app" — Google has been turning that flow off, which causes `Error 400: invalid_request — Custom URI scheme is not supported on Chrome apps`).
 
-1. Open https://console.cloud.google.com/
-2. Create a new project (or use an existing one)
-3. Enable the **Google Sheets API**
-4. Go to **APIs & Services** → **Credentials** → **Create Credentials** → **OAuth client ID**
-5. Application type: **Chrome Extension**
-6. You will need this extension's unpacked ID to register the OAuth client. To get it:
-   - Open `chrome://extensions`
-   - Enable **Developer mode** (top right)
-   - Click **Load unpacked** → select this folder
-   - Copy the generated extension ID (long alphanumeric string)
-7. Paste the ID into the OAuth client form, save
-8. Copy the generated **Client ID** (ends in `.apps.googleusercontent.com`)
-9. Open `manifest.json` and replace `REPLACE_WITH_YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com` with your real client ID
-10. Back at `chrome://extensions`, click the reload icon on the LeetCode Enforcer card
+1. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** → select this folder. Copy the generated extension ID (long alphanumeric string).
+2. Open https://console.cloud.google.com/
+3. Create a project (or pick one)
+4. **APIs & Services → Library** → enable **Google Sheets API**
+5. **APIs & Services → OAuth consent screen** → External → fill in app name, your email. Add scope `.../auth/spreadsheets`. **Add your Google account as a test user** (otherwise Google blocks the flow).
+6. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+7. **Application type: Web application**
+8. **Authorized redirect URIs**: add **`https://<EXTENSION_ID>.chromiumapp.org/`** (replace `<EXTENSION_ID>` with the ID from step 1 — trailing slash required)
+9. Save. Copy the generated **Client ID** (ends in `.apps.googleusercontent.com`)
+10. Open `manifest.json` → replace `REPLACE_WITH_YOUR_OAUTH_CLIENT_ID...` with your real client ID
+11. Back at `chrome://extensions`, hit the **reload ↻** icon on the LeetCode Enforcer card
 
 ### 2. Add icons
 
