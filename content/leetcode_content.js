@@ -128,11 +128,20 @@
         button.primary {
           background: #37352F; color: white; border: 0; border-radius: 6px;
           padding: 10px 18px; font-weight: 600; cursor: pointer; font-size: 14px;
+          display: inline-flex; align-items: center; gap: 6px;
         }
+        button.primary:disabled, button.ghost:disabled { opacity: .5; cursor: not-allowed; }
         button.ghost {
           background: transparent; color: #37352F; border: 0;
           padding: 10px 14px; cursor: pointer; font-size: 14px;
         }
+        .spinner {
+          width: 12px; height: 12px;
+          border: 2px solid currentColor; border-right-color: transparent;
+          border-radius: 50%; display: inline-block;
+          animation: lce-spin .7s linear infinite;
+        }
+        @keyframes lce-spin { to { transform: rotate(360deg); } }
       </style>
       <div class="backdrop">
         <div class="modal">
@@ -170,29 +179,47 @@
       confidence = parseInt(s.dataset.val, 10);
     }));
 
-    shadow.querySelector('[data-act="save"]').addEventListener('click', async () => {
+    const saveBtn = shadow.querySelector('[data-act="save"]');
+    const skipBtn = shadow.querySelector('[data-act="skip"]');
+    const originalSaveLabel = saveBtn.textContent;
+
+    saveBtn.addEventListener('click', async () => {
+      if (saveBtn.disabled) return;
       const notes = shadow.querySelector('textarea').value.trim();
       const needReview = shadow.querySelector('[data-id="needReview"]').checked;
       const mastered = shadow.querySelector('[data-id="mastered"]').checked;
 
-      const payload = {
-        ...meta,
-        confidence, notes, needReview, mastered,
-        code: lastAcceptedPayload?.code || null,
-        lang: lastAcceptedPayload?.lang || null
-      };
+      saveBtn.disabled = true;
+      skipBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="spinner"></span>Saving…';
 
-      const enriched = await maybeEnrichMeta(payload);
-      const res = await sendMessage({ type: 'recordSolve', payload: enriched });
-      if (res?.error) {
-        alert('LeetCode Enforcer: save failed — ' + res.error);
-        return;
+      try {
+        const payload = {
+          ...meta, confidence, notes, needReview, mastered,
+          code: lastAcceptedPayload?.code || null,
+          lang: lastAcceptedPayload?.lang || null
+        };
+        const enriched = await maybeEnrichMeta(payload);
+        const res = await sendMessage({ type: 'recordSolve', payload: enriched });
+        if (res?.error) {
+          alert('LeetCode Enforcer: save failed — ' + res.error);
+          saveBtn.disabled = false;
+          skipBtn.disabled = false;
+          saveBtn.textContent = originalSaveLabel;
+          return;
+        }
+        destroyOverlay();
+        maybeRefreshBanner();
+      } catch (e) {
+        alert('LeetCode Enforcer: save failed — ' + (e.message || e));
+        saveBtn.disabled = false;
+        skipBtn.disabled = false;
+        saveBtn.textContent = originalSaveLabel;
       }
-      destroyOverlay();
-      maybeRefreshBanner();
     });
 
-    shadow.querySelector('[data-act="skip"]').addEventListener('click', () => {
+    skipBtn.addEventListener('click', () => {
+      if (skipBtn.disabled) return;
       destroyOverlay();
     });
   }
