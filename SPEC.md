@@ -123,7 +123,7 @@ Shows, top to bottom:
    - 1 random unsolved-and-not-mastered problem (uses LC problem catalog, filtered against local Problems table)
 3. **Review queue**: top 1–3 due reviews, click-to-open in LC
 4. Streak chip: `"🔥 N day streak — don't break it"`
-5. **Emergency override**: button `"Override 10 minutes (1 left today)"`. Click → modal with textarea, must type exactly `"I am being weak"` → flips `overrideActiveUntil` to now+10min, increments `overrideUsedToday`, logged.
+5. **Emergency override**: button `"Override 10 minutes (1 left today)"`. Click → modal with textarea, must type exactly `"the quick brown fox jumps over the lazy dog"` → flips `overrideActiveUntil` to now+10min, increments `overrideUsedToday`, logged.
 
 ### Detection — MAIN-world fetch monkey-patch
 - Content script on `leetcode.com/*` injects `leetcode_inject.js` into the MAIN world via a `<script src="...">` tag pulled from `web_accessible_resources` (required because LC CSP blocks inline injection)
@@ -277,7 +277,7 @@ After finish: popup opens automatically with `"✅ You're ready"` and a `"Import
 - Daily quota (1–5)
 - Blocklist add/remove
 - SRS interval ladder (advanced — edit the array `[1,3,7,14,30]`)
-- Emergency override: enable/disable, count per day (default 1), duration (default 10 min), passphrase (default "I am being weak")
+- Emergency override: enable/disable, count per day (default 1), duration (default 10 min), passphrase (default "the quick brown fox jumps over the lazy dog")
 - Quota reset hour (default 03:00 local)
 - Google Sheet: reconnect, open URL, force re-sync, change spreadsheet
 - Setting: "Separate review quota from new-solve quota" (default off) — when on, user has both an `N reviews/day` and `M new solves/day` target
@@ -297,7 +297,7 @@ After finish: popup opens automatically with `"✅ You're ready"` and a `"Import
     overrideEnabled: true,
     overrideCountPerDay: 1,
     overrideDurationMin: 10,
-    overridePhrase: "I am being weak",
+    overridePhrase: "the quick brown fox jumps over the lazy dog",
     sheetId: "abc123...",
     quotaResetHour: 3,
     githubEnabled: false,
@@ -354,7 +354,7 @@ End-to-end test plan after implementation:
 4. **Detection**: On leetcode.com, solve any Easy → after "Accepted", inline overlay appears within 2s. Rate confidence 4, type a note, save.
 5. **Sheet write-through**: Immediately check the sheet — Problems tab has the new row with the note. Turn off Wi-Fi, solve again → red badge on icon, popup banner shows sync error.
 6. **Block lifts**: With quota satisfied, reload youtube.com → loads normally.
-7. **Override**: Manually clear `solvesToday`, try youtube.com → block page → click override → modal → type "I am being weak" → unblock for 10 min. Counter persists.
+7. **Override**: Manually clear `solvesToday`, try youtube.com → block page → click override → modal → type "the quick brown fox jumps over the lazy dog" → unblock for 10 min. Counter persists.
 8. **Review surfacing**: Manually set a problem's `nextDue` to yesterday → reload popup → review queue shows it. Reload leetcode.com → inline banner appears.
 9. **SRS ladder**: Solve fresh problem → interval = 1d. Review without flag → 3d. Review again without flag → 7d. Toggle "need review" on next review → stays at 7d.
 10. **Mastery**: Toggle Mastered on a problem from popup → disappears from review queue, status updates in sheet to `⭐ Mastered`.

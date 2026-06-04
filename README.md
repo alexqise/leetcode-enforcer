@@ -15,7 +15,7 @@ LC problems are expensive (20-40 min each), not 5-second Anki flashcards — so 
 - **Three review surfaces**: block screen, popup, inline LC banner
 - **Google Sheets sync** — Notion-styled spreadsheet, write-through, fail loud
 - **Optional GitHub sync** — auto-created **private** repo, one commit per accepted submission, code + per-problem README
-- **Emergency override**: 1/day, 10 min, requires typing "I am being weak"
+- **Emergency override**: 1/day, 10 min, requires typing "the quick brown fox jumps over the lazy dog"
 - **Strict streak** tracking with 03:00 local-time daily reset
 
 ## Installation (development)
@@ -93,7 +93,7 @@ Manual entries and imported history are not pushed (no code captured). Multiple 
 3. Click a problem → solve on LC
 4. After "Accepted" verdict → inline overlay appears: rate confidence, optionally take notes, save
 5. Block lifts when `solves today >= quota`
-6. Override available once per day (10 min, requires typing "I am being weak")
+6. Override available once per day (10 min, requires typing "the quick brown fox jumps over the lazy dog")
 
 ## Spreadsheet structure
 
