@@ -67,6 +67,8 @@ async function hydrate() {
     $('#gh-disconnected').hidden = false;
     $('#gh-connected').hidden = true;
     $('#gh-repo').value = settings.githubRepo || 'leetcode-enforcer-solutions';
+    $('#gh-oauth-repo').value = settings.githubRepo || 'leetcode-enforcer-solutions';
+    if (settings.githubClientId) $('#gh-client-id').value = settings.githubClientId;
   }
 }
 

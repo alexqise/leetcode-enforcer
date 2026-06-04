@@ -15,8 +15,11 @@ import {
 import { computeStats } from '../lib/stats.js';
 import {
   fetchUser as ghFetchUser, ensureRepo, pushSolution, langToExt,
-  slugFolder, buildProblemReadme, buildCommitMessage
+  slugFolder, buildProblemReadme, buildCommitMessage,
+  startDeviceFlow, checkDeviceToken
 } from '../lib/github.js';
+
+let pendingOauth = null;
 
 const ALARM_DAILY_RESET = 'lce.dailyReset';
 const ALARM_OVERRIDE_END = 'lce.overrideEnd';
@@ -82,6 +85,9 @@ async function handleMessage(msg, sender) {
     case 'connectGithub': return connectGithub(msg.token, msg.repoName);
     case 'disconnectGithub': return disconnectGithub();
     case 'testGithub': return testGithub();
+    case 'githubStartOauth': return githubStartOauth(msg.clientId);
+    case 'githubCheckOauth': return githubCheckOauth(msg.repoName);
+    case 'githubCancelOauth': return githubCancelOauth();
     default: throw new Error(`Unknown message type: ${msg.type}`);
   }
 }
@@ -472,6 +478,62 @@ async function testGithub() {
   } catch (e) {
     return { ok: false, error: e.message };
   }
+}
+
+async function githubStartOauth(clientId) {
+  try {
+    if (!clientId) throw new Error('Client ID required');
+    const data = await startDeviceFlow(clientId, 'repo');
+    pendingOauth = {
+      clientId,
+      deviceCode: data.device_code,
+      interval: data.interval || 5,
+      expiresAt: Date.now() + (data.expires_in || 900) * 1000,
+      lastPollAt: 0
+    };
+    await setSettings({ githubClientId: clientId });
+    return {
+      ok: true,
+      userCode: data.user_code,
+      verificationUri: data.verification_uri,
+      verificationUriComplete: data.verification_uri_complete || `${data.verification_uri}?user_code=${data.user_code}`,
+      expiresIn: data.expires_in
+    };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function githubCheckOauth(repoName) {
+  try {
+    if (!pendingOauth) return { ok: false, error: 'No OAuth in progress' };
+    if (Date.now() > pendingOauth.expiresAt) {
+      pendingOauth = null;
+      return { ok: false, error: 'Device code expired — try again' };
+    }
+    if (Date.now() - pendingOauth.lastPollAt < pendingOauth.interval * 1000) {
+      return { ok: true, pending: true };
+    }
+    pendingOauth.lastPollAt = Date.now();
+    const result = await checkDeviceToken(pendingOauth.clientId, pendingOauth.deviceCode);
+    if (result.slowDown) pendingOauth.interval += 5;
+    if (result.pending) return { ok: true, pending: true };
+    if (result.token) {
+      const clientId = pendingOauth.clientId;
+      pendingOauth = null;
+      const connectRes = await connectGithub(result.token, repoName);
+      if (!connectRes.ok) return connectRes;
+      return { ok: true, pending: false, ...connectRes };
+    }
+    return { ok: false, error: 'Unexpected OAuth response' };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+async function githubCancelOauth() {
+  pendingOauth = null;
+  return { ok: true };
 }
 
 async function syncProblemToGithub(problem, payload) {

@@ -82,19 +82,50 @@
       <h2>GitHub sync <span class="opt-tag">optional</span></h2>
       <p class="hint">Pushes each accepted submission to a <strong>private</strong> repo (auto-created if missing). One commit per submission, containing the code + a per-problem README.</p>
       <div id="gh-disconnected">
-        <div class="row">
-          <label>Personal Access Token</label>
-          <input type="password" id="gh-token" placeholder="github_pat_… or ghp_…">
+        <div class="gh-mode-tabs">
+          <button class="gh-tab active" data-mode="oauth">OAuth (recommended)</button>
+          <button class="gh-tab" data-mode="pat">Personal Access Token</button>
         </div>
-        <div class="row">
-          <label>Repo name</label>
-          <input type="text" id="gh-repo" value="leetcode-enforcer-solutions">
+
+        <div class="gh-mode" data-mode="oauth">
+          <p class="hint">One-time setup: register a GitHub OAuth App at <a href="https://github.com/settings/applications/new" target="_blank">github.com/settings/applications/new</a>. Set "Application name" to anything, "Homepage URL" to anything (e.g. <code>http://localhost</code>), check <strong>Enable Device Flow</strong>, then copy the <strong>Client ID</strong>.</p>
+          <div class="row">
+            <label>Client ID</label>
+            <input type="text" id="gh-client-id" placeholder="Iv1.abcd… or 1234abcd…">
+          </div>
+          <div class="row">
+            <label>Repo name</label>
+            <input type="text" id="gh-oauth-repo" value="leetcode-enforcer-solutions">
+          </div>
+          <div class="row gh-actions">
+            <button id="gh-oauth-start" class="primary">Authorize via GitHub</button>
+          </div>
+          <div id="gh-oauth-pending" hidden>
+            <p class="hint">Enter this code on the GitHub page that opened:</p>
+            <div class="gh-code" id="gh-user-code"></div>
+            <div class="gh-actions">
+              <a href="#" id="gh-open-verification" class="primary" target="_blank">Open GitHub →</a>
+              <button id="gh-oauth-cancel" class="ghost">Cancel</button>
+            </div>
+            <div class="hint" id="gh-oauth-status">Waiting for authorization…</div>
+          </div>
         </div>
-        <div class="row gh-actions">
-          <button id="gh-connect" class="primary">Connect GitHub</button>
-          <a href="https://github.com/settings/tokens?type=beta" target="_blank" class="link-hint">Create a fine-grained PAT →</a>
+
+        <div class="gh-mode" data-mode="pat" hidden>
+          <div class="row">
+            <label>Personal Access Token</label>
+            <input type="password" id="gh-token" placeholder="github_pat_… or ghp_…">
+          </div>
+          <div class="row">
+            <label>Repo name</label>
+            <input type="text" id="gh-repo" value="leetcode-enforcer-solutions">
+          </div>
+          <div class="row gh-actions">
+            <button id="gh-connect" class="primary">Connect GitHub</button>
+            <a href="https://github.com/settings/tokens?type=beta" target="_blank" class="link-hint">Create a fine-grained PAT →</a>
+          </div>
+          <div class="hint">Required scope: <code>Contents: Read and write</code> · <code>Administration: Read and write</code> (to create the repo).</div>
         </div>
-        <div class="hint">Required scope: <code>Contents: Read and write</code> · <code>Administration: Read and write</code> (to create the repo).</div>
       </div>
       <div id="gh-connected" hidden>
         <div class="row sheet-row">
