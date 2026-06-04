@@ -1,4 +1,6 @@
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
 body {
   margin: 0; padding: 0;
   background: linear-gradient(180deg, #2A2A28 0%, #1A1A18 100%);
