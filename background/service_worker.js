@@ -4,10 +4,12 @@ import {
 } from '../lib/storage.js';
 import { mergeReview, newProblemDefaults, getDueProblems, isDue } from '../lib/srs.js';
 import { applyBlockRules, clearBlockRules } from '../lib/blocklist.js';
-import { getAuthToken } from '../lib/oauth.js';
 import {
-  createSpreadsheet, upsertProblemRow, bulkUpsertProblems, writeStatsData, applyStyles
-} from '../lib/sheets.js';
+  signInWithGoogle, signOut, getCurrentUser, getSession,
+  upsertProblem, upsertProblemsBulk, fetchAllProblems,
+  upsertSettings as supaUpsertSettings, fetchSettings as supaFetchSettings,
+  upsertDailyState, fetchDailyState
+} from '../lib/supabase.js';
 import {
   fetchCurrentUser, fetchDailyChallenge, fetchAllAcceptedSubmissions,
   fetchProblemMeta, fetchProblemCatalog
@@ -52,6 +54,32 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
+chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
+  if (details.frameId !== 0) return;
+  await maybeBlockTabNavigation(details.tabId, details.url);
+});
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(async (details) => {
+  if (details.frameId !== 0) return;
+  await maybeBlockTabNavigation(details.tabId, details.url);
+});
+
+async function maybeBlockTabNavigation(tabId, url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return;
+    if (!await isBlockActive()) return;
+    const settings = await getSettings();
+    const hostname = u.hostname.replace(/^www\./, '');
+    const blocked = (settings.blocklist || []).some(d => {
+      const dom = d.replace(/^www\./, '');
+      return hostname === dom || hostname.endsWith('.' + dom);
+    });
+    if (!blocked) return;
+    const blockUrl = chrome.runtime.getURL('block/block.html') + '?from=' + encodeURIComponent(url);
+    await chrome.tabs.update(tabId, { url: blockUrl });
+  } catch (e) { console.warn('[LCE] SPA block check failed', e); }
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   handleMessage(msg, sender).then(sendResponse).catch(err => {
     console.error('lce message error', err);
@@ -71,15 +99,17 @@ async function handleMessage(msg, sender) {
     case 'getProblemMeta': return safeFetchProblemMeta(msg.slug);
     case 'searchCatalog': return searchCatalog(msg.query, msg.limit || 8);
     case 'startOverride': return startOverride(msg.phrase);
-    case 'connectGoogle': return connectGoogle();
+    case 'signInGoogle': return signIn();
+    case 'signOut': return doSignOut();
+    case 'getAuthState': return getAuthState();
     case 'importLeetcodeHistory': return importHistory();
     case 'updateSettings': return updateSettings(msg.patch);
     case 'forceSyncAll': return forceSyncAll();
     case 'retryLastSync': return retryLastSync();
-    case 'restyleSheet': return restyleSheet();
     case 'markMastered': return markMastered(msg.slug);
     case 'unmarkMastered': return unmarkMastered(msg.slug);
     case 'resetAll': return resetAllData();
+    case 'getLeetcodeLoginStatus': return getLeetcodeLoginStatus();
     case 'connectGithub': return connectGithub(msg.token, msg.repoName);
     case 'disconnectGithub': return disconnectGithub();
     case 'testGithub': return testGithub();
@@ -91,13 +121,96 @@ async function handleMessage(msg, sender) {
 }
 
 async function getStatus() {
-  const [settings, state, problems] = await Promise.all([getSettings(), getState(), getProblems()]);
+  const [settings, state, problems, session] = await Promise.all([
+    getSettings(), getState(), getProblems(), getSession()
+  ]);
   const due = getDueProblems(problems, todayISO(), 5);
   return {
     settings, state, due,
     blockActive: await isBlockActive(),
-    today: todayISO()
+    today: todayISO(),
+    signedIn: !!session,
+    user: session?.user ? { email: session.user.email, name: session.user.user_metadata?.full_name } : null
   };
+}
+
+async function getAuthState() {
+  const session = await getSession();
+  if (!session) return { signedIn: false };
+  return {
+    signedIn: true,
+    email: session.user?.email,
+    name: session.user?.user_metadata?.full_name,
+    avatar: session.user?.user_metadata?.avatar_url
+  };
+}
+
+async function signIn() {
+  try {
+    const session = await signInWithGoogle();
+    await pullFromSupabase();
+    // Also push any local data that may not exist remotely yet
+    try {
+      const localProblems = await getProblems();
+      if (Object.keys(localProblems).length) await upsertProblemsBulk(localProblems);
+      const localSettings = await getSettings();
+      await supaUpsertSettings(localSettings);
+      await syncDailyStateToSupabase();
+    } catch (e) { console.warn('[LCE] initial push failed', e); }
+    await setState({ lastSyncError: null });
+    return {
+      ok: true,
+      email: session.user?.email,
+      name: session.user?.user_metadata?.full_name
+    };
+  } catch (e) {
+    await setState({ lastSyncError: e.message });
+    return { ok: false, error: e.message };
+  }
+}
+
+async function doSignOut() {
+  await signOut();
+  await setState({ lastSyncError: null });
+  return { ok: true };
+}
+
+async function pullFromSupabase() {
+  try {
+    const [remoteProblems, remoteSettings, todayRemote] = await Promise.all([
+      fetchAllProblems(),
+      supaFetchSettings(),
+      fetchDailyState(todayISO())
+    ]);
+
+    if (remoteProblems && Object.keys(remoteProblems).length) {
+      const localProblems = await getProblems();
+      const merged = { ...remoteProblems, ...localProblems };
+      await chrome.storage.local.set({ problems: merged });
+    }
+
+    if (remoteSettings) {
+      const localSettings = await getSettings();
+      const mergedSettings = { ...localSettings, ...remoteSettings };
+      await setSettings(mergedSettings);
+    }
+
+    if (todayRemote) {
+      const state = await getState();
+      await setState({
+        solvesToday: Math.max(state.solvesToday || 0, todayRemote.solves_today || 0),
+        reviewsToday: Math.max(state.reviewsToday || 0, todayRemote.reviews_today || 0),
+        newSolvesToday: Math.max(state.newSolvesToday || 0, todayRemote.new_solves_today || 0),
+        overrideUsedToday: Math.max(state.overrideUsedToday || 0, todayRemote.override_used_today || 0),
+        streakDays: Math.max(state.streakDays || 0, todayRemote.streak_days || 0)
+      });
+    }
+
+    await syncBlockRules();
+  } catch (e) {
+    console.warn('[LCE] pullFromSupabase failed', e);
+    await setState({ lastSyncError: e.message });
+  }
 }
 
 async function isBlockActive() {
@@ -111,11 +224,8 @@ async function isBlockActive() {
 async function syncBlockRules() {
   const settings = await getSettings();
   const active = await isBlockActive();
-  if (active) {
-    await applyBlockRules(settings.blocklist, true);
-  } else {
-    await clearBlockRules();
-  }
+  if (active) await applyBlockRules(settings.blocklist, true);
+  else await clearBlockRules();
 }
 
 async function recordSolve(payload) {
@@ -139,8 +249,8 @@ async function recordSolve(payload) {
   await maybeAdvanceStreak();
   await syncBlockRules();
 
-  await syncProblemToSheet(updated);
-  await syncStatsToSheet();
+  await syncProblemToSupabase(slug, updated);
+  await syncDailyStateToSupabase();
   await syncProblemToGithub(updated, payload);
 
   return { ok: true, problem: updated };
@@ -175,20 +285,13 @@ async function getDueProblemsList(limit = 10) {
 }
 
 async function safeFetchDaily() {
-  try {
-    return await fetchDailyChallenge();
-  } catch (e) {
-    console.warn('daily challenge fetch failed', e);
-    return null;
-  }
+  try { return await fetchDailyChallenge(); }
+  catch (e) { console.warn('daily challenge fetch failed', e); return null; }
 }
 
 async function safeFetchProblemMeta(slug) {
-  try {
-    return await fetchProblemMeta(slug);
-  } catch (e) {
-    return { error: e.message };
-  }
+  try { return await fetchProblemMeta(slug); }
+  catch (e) { return { error: e.message }; }
 }
 
 async function searchCatalog(query, limit) {
@@ -214,10 +317,7 @@ async function getRandomUnsolvedProblem() {
       const items = await fetchProblemCatalog(2000);
       await setCatalog({ fetchedAt: todayISO(), items });
       catalog.items = items;
-    } catch (e) {
-      console.warn('catalog fetch failed', e);
-      return null;
-    }
+    } catch (e) { console.warn('catalog fetch failed', e); return null; }
   }
   const unsolved = catalog.items.filter(c => {
     const p = problems[c.slug];
@@ -242,29 +342,8 @@ async function startOverride(phrase) {
   });
   chrome.alarms.create(ALARM_OVERRIDE_END, { when: untilMs });
   await syncBlockRules();
+  await syncDailyStateToSupabase();
   return { ok: true, until: untilMs };
-}
-
-async function connectGoogle() {
-  try {
-    const token = await getAuthToken(true);
-    const settings = await getSettings();
-    if (!settings.sheetId) {
-      const { spreadsheetId, spreadsheetUrl } = await createSpreadsheet(token);
-      await setSettings({ sheetId: spreadsheetId, sheetUrl: spreadsheetUrl });
-    } else if (!settings.sheetUrl) {
-      await setSettings({ sheetUrl: `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` });
-    }
-    try {
-      const user = await fetchCurrentUser();
-      if (user?.username) await setSettings({ leetcodeUsername: user.username });
-    } catch (e) { /* user may not be logged into LC yet, that's fine */ }
-    await setState({ lastSyncError: null });
-    return { ok: true };
-  } catch (e) {
-    await setState({ lastSyncError: e.message });
-    return { ok: false, error: e.message };
-  }
 }
 
 async function importHistory() {
@@ -279,16 +358,15 @@ async function importHistory() {
 
     const accepted = await fetchAllAcceptedSubmissions(leetcodeUsername);
     const problems = await getProblems();
-    const newRows = [];
+    const newOnes = {};
 
     for (const s of accepted) {
       if (problems[s.titleSlug]) continue;
       let meta = null;
       try { meta = await fetchProblemMeta(s.titleSlug); } catch {}
-      const today = todayISO();
       const firstSolved = s.timestamp
         ? new Date(parseInt(s.timestamp, 10) * 1000).toISOString().slice(0, 10)
-        : today;
+        : todayISO();
       const problem = {
         number: meta?.number ?? null,
         title: s.title,
@@ -305,18 +383,14 @@ async function importHistory() {
         history: [{ date: firstSolved, type: 'solve', confidence: null, needReview: false, mastered: true }]
       };
       await setProblem(s.titleSlug, problem);
-      newRows.push(problem);
+      newOnes[s.titleSlug] = problem;
     }
 
-    if (newRows.length) {
-      const { sheetId } = await getSettings();
-      if (sheetId) {
-        const token = await getAuthToken(false);
-        await bulkUpsertProblems(token, sheetId, newRows);
-        await syncStatsToSheet();
-      }
+    if (Object.keys(newOnes).length) {
+      try { await upsertProblemsBulk(newOnes); }
+      catch (e) { console.warn('[LCE] supabase bulk import failed', e); }
     }
-    return { ok: true, imported: newRows.length };
+    return { ok: true, imported: Object.keys(newOnes).length };
   } catch (e) {
     await setState({ lastSyncError: e.message });
     return { ok: false, error: e.message };
@@ -327,18 +401,20 @@ async function updateSettings(patch) {
   const next = await setSettings(patch);
   await syncBlockRules();
   await scheduleDailyReset();
+  try { await supaUpsertSettings(next); }
+  catch (e) { console.warn('[LCE] settings supabase sync failed', e); }
   return next;
 }
 
 async function forceSyncAll() {
   try {
-    const { sheetId } = await getSettings();
-    if (!sheetId) throw new Error('Not connected to Sheets');
-    const token = await getAuthToken(false);
     const problems = await getProblems();
-    await bulkUpsertProblems(token, sheetId, Object.values(problems));
-    await syncStatsToSheet();
+    const settings = await getSettings();
+    await upsertProblemsBulk(problems);
+    await supaUpsertSettings(settings);
+    await syncDailyStateToSupabase();
     await setState({ lastSyncError: null });
+    await setBadgeOk();
     return { ok: true };
   } catch (e) {
     await setState({ lastSyncError: e.message });
@@ -346,21 +422,7 @@ async function forceSyncAll() {
   }
 }
 
-async function retryLastSync() {
-  return forceSyncAll();
-}
-
-async function restyleSheet() {
-  try {
-    const { sheetId } = await getSettings();
-    if (!sheetId) throw new Error('Not connected to Sheets');
-    const token = await getAuthToken(true);
-    await applyStyles(token, sheetId);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
-}
+async function retryLastSync() { return forceSyncAll(); }
 
 async function markMastered(slug) {
   const problems = await getProblems();
@@ -368,7 +430,7 @@ async function markMastered(slug) {
   if (!p) return { ok: false, error: 'Not found' };
   p.status = 'Mastered';
   await setProblem(slug, p);
-  await syncProblemToSheet(p);
+  await syncProblemToSupabase(slug, p);
   return { ok: true };
 }
 
@@ -380,7 +442,7 @@ async function unmarkMastered(slug) {
   p.srsIntervalDays = 1;
   p.lastReviewed = todayISO();
   await setProblem(slug, p);
-  await syncProblemToSheet(p);
+  await syncProblemToSupabase(slug, p);
   return { ok: true };
 }
 
@@ -390,36 +452,26 @@ async function resetAllData() {
   return { ok: true };
 }
 
-async function syncProblemToSheet(problem) {
+async function syncProblemToSupabase(slug, problem) {
   try {
-    const { sheetId } = await getSettings();
-    if (!sheetId) return;
-    const token = await getAuthToken(false);
-    await upsertProblemRow(token, sheetId, problem);
+    await upsertProblem(slug, problem);
     await setState({ lastSyncError: null });
     await setBadgeOk();
   } catch (e) {
-    console.error('sync problem failed', e);
+    console.error('supabase problem sync failed', e);
     await setState({ lastSyncError: e.message });
     await setBadgeError();
   }
 }
 
-async function syncStatsToSheet() {
+async function syncDailyStateToSupabase() {
   try {
-    const { sheetId } = await getSettings();
-    if (!sheetId) return;
-    const token = await getAuthToken(false);
-    const problems = await getProblems();
     const state = await getState();
-    const stats = computeStats(problems, state);
-    await writeStatsData(token, sheetId, stats);
+    await upsertDailyState(todayISO(), state);
     await setState({ lastSyncError: null });
     await setBadgeOk();
   } catch (e) {
-    console.error('sync stats failed', e);
-    await setState({ lastSyncError: e.message });
-    await setBadgeError();
+    console.warn('daily state supabase sync failed', e);
   }
 }
 
@@ -434,6 +486,19 @@ async function setBadgeError() {
   chrome.action.setBadgeBackgroundColor({ color: '#D9534F' });
 }
 
+// ============================================================
+// LeetCode + GitHub (unchanged)
+// ============================================================
+
+async function getLeetcodeLoginStatus() {
+  try {
+    const user = await fetchCurrentUser();
+    return { ok: true, isSignedIn: !!user?.isSignedIn, username: user?.username || null };
+  } catch (e) {
+    return { ok: false, isSignedIn: false, error: e.message };
+  }
+}
+
 async function connectGithub(token, repoName) {
   try {
     if (!token) throw new Error('Token required');
@@ -443,11 +508,8 @@ async function connectGithub(token, repoName) {
     const repo = repoName || settings.githubRepo || 'leetcode-enforcer-solutions';
     const repoData = await ensureRepo(token, user.login, repo);
     await setSettings({
-      githubEnabled: true,
-      githubToken: token,
-      githubOwner: user.login,
-      githubRepo: repo,
-      githubBranch: repoData.default_branch || 'main',
+      githubEnabled: true, githubToken: token, githubOwner: user.login,
+      githubRepo: repo, githubBranch: repoData.default_branch || 'main',
       githubRepoUrl: repoData.html_url
     });
     await setState({ lastGithubError: null });
@@ -459,10 +521,7 @@ async function connectGithub(token, repoName) {
 }
 
 async function disconnectGithub() {
-  await setSettings({
-    githubEnabled: false, githubToken: null, githubOwner: null,
-    githubRepoUrl: null
-  });
+  await setSettings({ githubEnabled: false, githubToken: null, githubOwner: null, githubRepoUrl: null });
   await setState({ lastGithubError: null, lastGithubCommitUrl: null });
   return { ok: true };
 }
@@ -473,9 +532,7 @@ async function testGithub() {
     if (!githubToken) throw new Error('Not connected');
     const user = await ghFetchUser(githubToken);
     return { ok: true, login: user.login };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 
 async function githubStartOauth(clientId) {
@@ -483,23 +540,17 @@ async function githubStartOauth(clientId) {
     if (!clientId) throw new Error('Client ID required');
     const data = await startDeviceFlow(clientId, 'repo');
     pendingOauth = {
-      clientId,
-      deviceCode: data.device_code,
-      interval: data.interval || 5,
-      expiresAt: Date.now() + (data.expires_in || 900) * 1000,
-      lastPollAt: 0
+      clientId, deviceCode: data.device_code, interval: data.interval || 5,
+      expiresAt: Date.now() + (data.expires_in || 900) * 1000, lastPollAt: 0
     };
     await setSettings({ githubClientId: clientId });
     return {
-      ok: true,
-      userCode: data.user_code,
+      ok: true, userCode: data.user_code,
       verificationUri: data.verification_uri,
       verificationUriComplete: data.verification_uri_complete || `${data.verification_uri}?user_code=${data.user_code}`,
       expiresIn: data.expires_in
     };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 
 async function githubCheckOauth(repoName) {
@@ -517,28 +568,21 @@ async function githubCheckOauth(repoName) {
     if (result.slowDown) pendingOauth.interval += 5;
     if (result.pending) return { ok: true, pending: true };
     if (result.token) {
-      const clientId = pendingOauth.clientId;
       pendingOauth = null;
       const connectRes = await connectGithub(result.token, repoName);
       if (!connectRes.ok) return connectRes;
       return { ok: true, pending: false, ...connectRes };
     }
     return { ok: false, error: 'Unexpected OAuth response' };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
+  } catch (e) { return { ok: false, error: e.message }; }
 }
 
-async function githubCancelOauth() {
-  pendingOauth = null;
-  return { ok: true };
-}
+async function githubCancelOauth() { pendingOauth = null; return { ok: true }; }
 
 async function syncProblemToGithub(problem, payload) {
   const settings = await getSettings();
   if (!settings.githubEnabled || !settings.githubToken) return;
   if (!payload.code || !payload.lang) return;
-
   try {
     const ext = langToExt(payload.lang);
     const folder = slugFolder({ number: problem.number, slug: payload.slug });
@@ -547,12 +591,9 @@ async function syncProblemToGithub(problem, payload) {
       { path: 'README.md', content: buildProblemReadme(problem) }
     ];
     const message = buildCommitMessage(problem, payload.confidence);
-
     const result = await pushSolution(settings.githubToken, {
-      owner: settings.githubOwner,
-      repo: settings.githubRepo,
-      branch: settings.githubBranch,
-      folder, files, message
+      owner: settings.githubOwner, repo: settings.githubRepo,
+      branch: settings.githubBranch, folder, files, message
     });
     await setState({ lastGithubError: null, lastGithubCommitUrl: result.url });
     await setBadgeOk();
@@ -562,6 +603,10 @@ async function syncProblemToGithub(problem, payload) {
     await setBadgeError();
   }
 }
+
+// ============================================================
+// Daily reset scheduling
+// ============================================================
 
 function computeNextResetISO(hour = 3) {
   const now = new Date();
@@ -583,20 +628,14 @@ async function scheduleDailyReset() {
 async function doDailyReset() {
   const state = await getState();
   const settings = await getSettings();
-
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const hitYesterdayQuota = state.streakLastUpdated === yesterday;
   const newStreak = hitYesterdayQuota ? state.streakDays : 0;
-
   await setState({
-    solvesToday: 0,
-    reviewsToday: 0,
-    newSolvesToday: 0,
-    overrideUsedToday: 0,
-    overrideActiveUntil: null,
+    solvesToday: 0, reviewsToday: 0, newSolvesToday: 0,
+    overrideUsedToday: 0, overrideActiveUntil: null,
     streakDays: newStreak,
     quotaResetAt: computeNextResetISO(settings.quotaResetHour)
   });
-
   await syncBlockRules();
 }
