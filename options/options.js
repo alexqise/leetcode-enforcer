@@ -6,7 +6,7 @@ let settings = { ...DEFAULT_SETTINGS };
 init().catch(err => {
   console.error('options init failed', err);
   document.body.insertAdjacentHTML('afterbegin',
-    `<div style="padding:12px;background:#FDECEA;color:#B23A2E">Init failed: ${escapeHtml(err.message || String(err))}</div>`);
+    `<div style="padding:12px 16px;background:rgba(242,111,111,0.10);border:1px solid rgba(242,111,111,0.25);color:#F26F6F;font-size:12.5px;border-radius:6px;margin:12px;font-family:Inter,sans-serif">Init failed: ${escapeHtml(err.message || String(err))}</div>`);
 });
 
 async function init() {
@@ -144,9 +144,9 @@ function wire() {
     const res = await send({ type: 'importLeetcodeHistory' });
     e.target.disabled = false;
     if (res?.error || res?.ok === false) {
-      $('#import-status').textContent = '✗ ' + (res?.error || 'failed');
+      $('#import-status').textContent = 'Failed: ' + (res?.error || 'unknown');
     } else {
-      $('#import-status').textContent = `✓ Imported ${res.imported} problems as Mastered`;
+      $('#import-status').textContent = `Imported ${res.imported} problems as Mastered`;
     }
   });
 
@@ -181,9 +181,9 @@ function wire() {
     else alert('Test failed: ' + res.error);
   });
 
-  document.querySelectorAll('.gh-tab').forEach(tab => {
+  document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.gh-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       const mode = tab.dataset.mode;
       document.querySelectorAll('.gh-mode').forEach(m => { m.hidden = m.dataset.mode !== mode; });
@@ -234,7 +234,7 @@ function wire() {
       const res = await send({ type: 'githubCheckOauth', repoName });
       if (!res.ok) {
         stopOauthPolling();
-        $('#gh-oauth-status').textContent = '✗ ' + res.error;
+        $('#gh-oauth-status').textContent = 'Error: ' + res.error;
         originalBtn.disabled = false;
         originalBtn.textContent = 'Authorize via GitHub';
         return;
@@ -307,7 +307,7 @@ async function save() {
   if (res?.error) { alert('Save failed: ' + res.error); return; }
   settings = await getSettings();
   await hydrate();
-  $('#save-status').textContent = '✓ Saved';
+  $('#save-status').textContent = 'Saved';
   setTimeout(() => { $('#save-status').textContent = ''; }, 2000);
 }
 
