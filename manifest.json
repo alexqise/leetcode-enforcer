@@ -51,7 +51,10 @@
     "default_popup": "popup/popup.html",
     "default_title": "LeetCode Enforcer"
   },
-  "options_page": "options/options.html",
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
   "oauth2": {
     "client_id": "792769984910-ln69j6u76uq7fvj034717ctejcq5ug2s.apps.googleusercontent.com",
     "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
