@@ -5,15 +5,15 @@
    ========================================================= */
 
 :root {
-  /* surfaces — narrow 4-step range as Linear does */
-  --bg:           #08090A;
-  --surface:      #0E0F11;
-  --surface-2:    #131418;
-  --surface-3:    #1A1B20;
+  /* surfaces — soft off-black, Linear-style elevated darks */
+  --bg:           #131316;
+  --surface:      #1A1A1E;
+  --surface-2:    #212128;
+  --surface-3:    #2A2B33;
 
   /* borders — hairline */
-  --border:       #1C1D22;
-  --border-2:     #26282E;
+  --border:       #26272F;
+  --border-2:     #34353F;
 
   /* text — three steps */
   --fg:           #E8E9EE;
