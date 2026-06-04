@@ -119,6 +119,22 @@ function wire() {
 
   $('#save').addEventListener('click', save);
 
+  $('#import-history').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    $('#import-status').textContent = 'Importing…';
+    const res = await send({ type: 'importLeetcodeHistory' });
+    e.target.disabled = false;
+    if (res?.error || res?.ok === false) {
+      $('#import-status').textContent = '✗ ' + (res?.error || 'failed');
+    } else {
+      $('#import-status').textContent = `✓ Imported ${res.imported} problems as Mastered`;
+    }
+  });
+
+  if (location.hash === '#github') {
+    setTimeout(() => $('#github')?.scrollIntoView({ behavior: 'smooth' }), 100);
+  }
+
   $('#gh-connect').addEventListener('click', async () => {
     const token = $('#gh-token').value.trim();
     const repoName = $('#gh-repo').value.trim() || 'leetcode-enforcer-solutions';

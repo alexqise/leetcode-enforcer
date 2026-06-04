@@ -74,6 +74,19 @@ async function render() {
   }
 }
 
+async function maybePromptHistoryImport() {
+  const { state = {} } = await chrome.storage.local.get('state');
+  if (state.historyImportPrompted) return;
+  await chrome.storage.local.set({ state: { ...state, historyImportPrompted: true } });
+  if (!confirm('Connected. Pull your LeetCode history once (marks all as Mastered)? You can also do this later from Settings.')) return;
+  const res = await send({ type: 'importLeetcodeHistory' });
+  if (res?.error || res?.ok === false) {
+    alert('History import failed: ' + (res?.error || 'unknown'));
+  } else {
+    alert(`Imported ${res.imported} problems.`);
+  }
+}
+
 function wire() {
   $('#open-options').addEventListener('click', (e) => {
     e.preventDefault();
@@ -87,19 +100,6 @@ function wire() {
     e.target.textContent = 'Retry';
     await render();
     if (res?.ok === false) alert('Still failing: ' + res.error);
-  });
-  $('#import-history').addEventListener('click', async (e) => {
-    e.preventDefault();
-    e.target.textContent = '… importing';
-    const res = await send({ type: 'importLeetcodeHistory' });
-    if (res.error) {
-      alert('Import failed: ' + res.error);
-      e.target.textContent = '⤵ Import LC history';
-    } else {
-      e.target.textContent = `✓ Imported ${res.imported}`;
-      setTimeout(() => { e.target.textContent = '⤵ Import LC history'; }, 3000);
-    }
-    await render();
   });
 
   let searchTimer;

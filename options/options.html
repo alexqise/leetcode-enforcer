@@ -78,7 +78,7 @@
       </div>
     </section>
 
-    <section>
+    <section id="github">
       <h2>GitHub sync <span class="opt-tag">optional</span></h2>
       <p class="hint">Pushes each accepted submission to a <strong>private</strong> repo (auto-created if missing). One commit per submission, containing the code + a per-problem README.</p>
       <div id="gh-disconnected">
@@ -104,6 +104,15 @@
           <button id="gh-disconnect" class="ghost">Disconnect</button>
         </div>
         <div class="hint" id="gh-last-commit"></div>
+      </div>
+    </section>
+
+    <section id="history">
+      <h2>LeetCode history</h2>
+      <p class="hint">Pull your accepted-submissions history from LeetCode (you must be signed into leetcode.com in this browser). New entries are added as Mastered, no SRS impact.</p>
+      <div class="row">
+        <button id="import-history" class="ghost">Import LeetCode history</button>
+        <span id="import-status"></span>
       </div>
     </section>
 
