@@ -4,10 +4,12 @@
   console.log('[LCE/inject] loaded in MAIN world');
 
   let lastSubmit = null;
+  let watchUntil = 0;
 
   const SUBMIT_URL_RE = /\/problems\/[^/]+\/submit\/?($|\?)/;
   const CHECK_URL_RE = /\/submissions\/detail\/\d+\/check\//;
   const GRAPHQL_RE = /\/graphql\/?$/;
+  const INTEREST_RE = /submit|check|submission|graphql|result|detail|verdict/i;
 
   const origFetch = window.fetch;
   window.fetch = async function patchedFetch(...args) {
@@ -26,11 +28,24 @@
           code: parsed.typed_code,
           submittedAt: Date.now()
         };
+        watchUntil = Date.now() + 30000;
         console.log('[LCE/inject] captured submit body', { slug: lastSubmit.slug, lang: lastSubmit.lang });
       } catch (e) { console.warn('[LCE/inject] submit body parse failed', e); }
     }
 
     const res = await origFetch.apply(this, args);
+
+    if (Date.now() < watchUntil && INTEREST_RE.test(reqUrl + ' ' + reqBody.slice(0, 200))) {
+      console.log('[LCE/inject] post-submit fetch', { reqMethod, reqUrl, bodySnippet: reqBody.slice(0, 200) });
+      try {
+        const clone = res.clone();
+        clone.text().then(t => {
+          const snippet = t.slice(0, 400);
+          console.log('[LCE/inject] response snippet for', reqUrl, snippet);
+          maybeHandleAccepted(t, reqUrl);
+        }).catch(() => {});
+      } catch {}
+    }
 
     try {
       const looksLikeCheck = CHECK_URL_RE.test(reqUrl);
@@ -54,6 +69,21 @@
     } catch (e) { console.warn('[LCE/inject] check handler error', e); }
     return res;
   };
+
+  function maybeHandleAccepted(text, url) {
+    try {
+      const data = JSON.parse(text);
+      const result = extractResult(data);
+      if (result && result.statusMsg === 'Accepted') {
+        const codeBundle = lastSubmit && (Date.now() - lastSubmit.submittedAt < 60000)
+          ? { code: lastSubmit.code, lang: lastSubmit.lang, slug: lastSubmit.slug }
+          : {};
+        console.log('[LCE/inject] generic-detection: posting accepted event from', url);
+        window.postMessage({ source: 'lce-detector', event: 'accepted', payload: { ...result, ...codeBundle } }, '*');
+        watchUntil = 0;
+      }
+    } catch {}
+  }
 
   function extractResult(data) {
     if (!data) return null;
