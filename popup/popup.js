@@ -79,9 +79,14 @@ function wire() {
     e.preventDefault();
     chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') });
   });
-  $('#retry-sync').addEventListener('click', async () => {
-    await send({ type: 'retryLastSync' });
+  $('#retry-sync').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    e.target.textContent = '…';
+    const res = await send({ type: 'retryLastSync' });
+    e.target.disabled = false;
+    e.target.textContent = 'Retry';
     await render();
+    if (res?.ok === false) alert('Still failing: ' + res.error);
   });
   $('#import-history').addEventListener('click', async (e) => {
     e.preventDefault();
