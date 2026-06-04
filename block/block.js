@@ -80,7 +80,7 @@ async function loadSuggestions() {
 
 function wireOverride(settings) {
   const modal = $('#override-modal');
-  const phrase = settings.overridePhrase || 'I am being weak';
+  const phrase = settings.overridePhrase || 'the quick brown fox jumps over the lazy dog';
   $('#phrase-required').textContent = phrase;
 
   $('#override-btn').addEventListener('click', () => {
