@@ -25,15 +25,13 @@ const ALARM_DAILY_RESET = 'lce.dailyReset';
 const ALARM_OVERRIDE_END = 'lce.overrideEnd';
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-  const state = await getState();
-  if (!state.installComplete) {
+  if (details.reason === 'install') {
+    const settings = await getSettings();
     await setState({
       ...DEFAULT_STATE,
-      quotaResetAt: computeNextResetISO((await getSettings()).quotaResetHour),
+      quotaResetAt: computeNextResetISO(settings.quotaResetHour),
       streakLastUpdated: todayISO()
     });
-  }
-  if (details.reason === 'install') {
     chrome.tabs.create({ url: chrome.runtime.getURL('onboarding/onboarding.html') });
   }
   await scheduleDailyReset();
