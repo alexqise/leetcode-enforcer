@@ -88,20 +88,38 @@
         </div>
 
         <div class="gh-mode" data-mode="oauth">
-          <p class="hint">One-time setup: register a GitHub OAuth App at <a href="https://github.com/settings/applications/new" target="_blank">github.com/settings/applications/new</a>. Set "Application name" to anything, "Homepage URL" to anything (e.g. <code>http://localhost</code>), check <strong>Enable Device Flow</strong>, then copy the <strong>Client ID</strong>.</p>
-          <div class="row">
-            <label>Client ID</label>
-            <input type="text" id="gh-client-id" placeholder="Iv1.abcd… or 1234abcd…">
+          <div id="gh-oauth-ready" hidden>
+            <p class="hint">Click to connect — a GitHub authorization page will open in a new tab.</p>
+            <div class="row">
+              <label>Repo name</label>
+              <input type="text" id="gh-oauth-repo" value="leetcode-enforcer-solutions">
+            </div>
+            <div class="row gh-actions">
+              <button id="gh-oauth-start" class="primary">Connect with GitHub</button>
+              <a href="#" id="gh-oauth-change" class="link-hint">Change OAuth App</a>
+            </div>
           </div>
-          <div class="row">
-            <label>Repo name</label>
-            <input type="text" id="gh-oauth-repo" value="leetcode-enforcer-solutions">
+
+          <div id="gh-oauth-setup">
+            <p class="hint"><strong>One-time setup.</strong> Register a free GitHub OAuth App so this extension can ask for your permission. After this, "Connect with GitHub" is just one button click.</p>
+            <ol class="gh-steps">
+              <li>Open <a href="https://github.com/settings/applications/new" target="_blank">github.com/settings/applications/new</a></li>
+              <li>Fill in any <strong>Application name</strong> (e.g. <code>LeetCode Enforcer</code>) and any <strong>Homepage URL</strong> (e.g. <code>http://localhost</code>)</li>
+              <li>Check <strong>Enable Device Flow</strong></li>
+              <li>Click <strong>Register application</strong> → copy the <strong>Client ID</strong> shown</li>
+              <li>Paste it below, hit Save</li>
+            </ol>
+            <div class="row">
+              <label>Client ID</label>
+              <input type="text" id="gh-client-id" placeholder="Iv1.abcd… or 1234abcd…">
+            </div>
+            <div class="row gh-actions">
+              <button id="gh-save-client-id" class="primary">Save Client ID</button>
+            </div>
           </div>
-          <div class="row gh-actions">
-            <button id="gh-oauth-start" class="primary">Authorize via GitHub</button>
-          </div>
+
           <div id="gh-oauth-pending" hidden>
-            <p class="hint">Enter this code on the GitHub page that opened:</p>
+            <p class="hint">Authorizing… If the GitHub tab didn't open, click below.</p>
             <div class="gh-code" id="gh-user-code"></div>
             <div class="gh-actions">
               <a href="#" id="gh-open-verification" class="primary" target="_blank">Open GitHub →</a>
