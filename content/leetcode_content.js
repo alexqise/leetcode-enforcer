@@ -7,6 +7,7 @@
   init();
 
   function init() {
+    console.log('[LCE/content] loaded in ISOLATED world on', location.href);
     window.addEventListener('message', onMessage);
     setupBanner();
 
@@ -24,6 +25,7 @@
     const m = evt.data;
     if (!m || m.source !== 'lce-detector') return;
     if (m.event === 'accepted') {
+      console.log('[LCE/content] received accepted event', m.payload);
       const now = Date.now();
       if (now - processedAt < 2000) return;
       processedAt = now;
