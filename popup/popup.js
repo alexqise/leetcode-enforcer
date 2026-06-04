@@ -50,7 +50,7 @@ async function render() {
   $('#progress-text').textContent = `${state.solvesToday} / ${settings.dailyQuota}`;
   const pct = Math.min(100, Math.round(100 * state.solvesToday / Math.max(1, settings.dailyQuota)));
   $('#bar-fill').style.width = pct + '%';
-  $('#streak').textContent = `🔥 ${state.streakDays || 0}`;
+  $('#streak-num').textContent = String(state.streakDays || 0);
   $('#block-state').textContent = blockActive
     ? 'Blocking is active.'
     : (state.overrideActiveUntil
@@ -73,7 +73,7 @@ async function render() {
   if (due.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'due-empty';
-    empty.textContent = 'Nothing due. 👍';
+    empty.textContent = 'Nothing due — you’re clear.';
     dueEl.appendChild(empty);
   } else {
     for (const p of due) {
@@ -91,11 +91,16 @@ async function render() {
     }
   }
 
+  const ICON_USER = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 13.5c.7-2 2.5-3 5-3s4.3 1 5 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  const ICON_LOCK = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="3.5" y="6.5" width="9" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M5.5 6.5V4.5a2.5 2.5 0 015 0v2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+
+  const authLink = $('#auth-action');
+  const authIcon = $('#auth-icon-out');
   if (status.signedIn) {
     const label = status.user?.name || status.user?.email || 'Signed in';
     $('#auth-label').textContent = label;
-    $('#auth-icon').textContent = '👤';
-    $('#auth-action').onclick = async (e) => {
+    if (authIcon) authIcon.outerHTML = ICON_USER.replace('<svg', '<svg id="auth-icon-out"');
+    authLink.onclick = async (e) => {
       e.preventDefault();
       if (!confirm('Sign out of Google? Local data stays.')) return;
       await send({ type: 'signOut' });
@@ -103,8 +108,8 @@ async function render() {
     };
   } else {
     $('#auth-label').textContent = 'Sign in with Google';
-    $('#auth-icon').textContent = '🔐';
-    $('#auth-action').onclick = async (e) => {
+    if (authIcon) authIcon.outerHTML = ICON_LOCK.replace('<svg', '<svg id="auth-icon-out"');
+    authLink.onclick = async (e) => {
       e.preventDefault();
       const res = await send({ type: 'signInGoogle' });
       if (res?.ok) {
@@ -167,6 +172,10 @@ function wire() {
     btn.textContent = btn.dataset.label || 'Retry';
     await render();
     if (res?.ok === false) alert('Still failing: ' + res.error);
+  });
+
+  $('#manual-query').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.target.value = ''; $('#manual-results').innerHTML = ''; e.target.blur(); }
   });
 
   let searchTimer;
