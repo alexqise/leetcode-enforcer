@@ -3,15 +3,26 @@ import { getSettings, setSettings, DEFAULT_SETTINGS } from '../lib/storage.js';
 const $ = sel => document.querySelector(sel);
 let settings = { ...DEFAULT_SETTINGS };
 
-init();
+init().catch(err => {
+  console.error('options init failed', err);
+  document.body.insertAdjacentHTML('afterbegin',
+    `<div style="padding:12px;background:#FDECEA;color:#B23A2E">Init failed: ${escapeHtml(err.message || String(err))}</div>`);
+});
 
 async function init() {
   settings = await getSettings();
-  hydrate();
+  await hydrate();
   wire();
+  chrome.storage.onChanged.addListener(async (changes, area) => {
+    if (area !== 'local') return;
+    if (changes.settings || changes.state) {
+      settings = await getSettings();
+      await hydrate();
+    }
+  });
 }
 
-function hydrate() {
+async function hydrate() {
   $('#quota').value = settings.dailyQuota;
   $('#quota-value').textContent = settings.dailyQuota;
   $('#split-quota').checked = !!settings.splitReviewQuota;
@@ -30,10 +41,12 @@ function hydrate() {
 
   renderBlocklist();
 
-  if (settings.sheetUrl) {
+  const sheetUrl = settings.sheetUrl
+    || (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` : null);
+  if (settings.sheetId) {
     $('#sheet-status').textContent = 'Connected';
     $('#open-sheet-link').hidden = false;
-    $('#open-sheet-link').href = settings.sheetUrl;
+    $('#open-sheet-link').href = sheetUrl;
   } else {
     $('#sheet-status').textContent = 'Not connected';
     $('#open-sheet-link').hidden = true;
@@ -44,7 +57,7 @@ function hydrate() {
     $('#gh-connected').hidden = false;
     $('#gh-login').textContent = settings.githubOwner || '?';
     $('#gh-repo-link').href = settings.githubRepoUrl || '#';
-    const state = await chrome.storage.local.get('state').then(r => r.state || {});
+    const { state = {} } = await chrome.storage.local.get('state');
     if (state.lastGithubCommitUrl) {
       $('#gh-last-commit').innerHTML = `Last commit: <a href="${state.lastGithubCommitUrl}" target="_blank">view</a>`;
     } else {
@@ -88,7 +101,7 @@ function wire() {
     const res = await send({ type: 'connectGoogle' });
     if (res.error) alert('Connect failed: ' + res.error);
     settings = await getSettings();
-    hydrate();
+    await hydrate();
   });
 
   $('#force-sync').addEventListener('click', async () => {
@@ -100,7 +113,7 @@ function wire() {
     if (!confirm('Wipe ALL local data? This cannot be undone. The spreadsheet itself is not deleted.')) return;
     await send({ type: 'resetAll' });
     settings = { ...DEFAULT_SETTINGS };
-    hydrate();
+    await hydrate();
     alert('Reset complete.');
   });
 
@@ -118,14 +131,14 @@ function wire() {
     if (!res.ok) { alert('GitHub connect failed: ' + res.error); return; }
     $('#gh-token').value = '';
     settings = await getSettings();
-    hydrate();
+    await hydrate();
     alert(`Connected as ${res.owner}. Repo: ${res.repo}`);
   });
   $('#gh-disconnect').addEventListener('click', async () => {
     if (!confirm('Disconnect GitHub? Local PAT will be deleted. The repo and its contents are kept.')) return;
     await send({ type: 'disconnectGithub' });
     settings = await getSettings();
-    hydrate();
+    await hydrate();
   });
   $('#gh-test').addEventListener('click', async () => {
     const res = await send({ type: 'testGithub' });
@@ -143,25 +156,31 @@ function addSite() {
   renderBlocklist();
 }
 
+function num(val, fallback) {
+  const n = parseInt(val, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 async function save() {
   const ladder = $('#ladder').value
     .split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n) && n > 0);
   const patch = {
-    dailyQuota: parseInt($('#quota').value, 10),
+    dailyQuota: num($('#quota').value, 1),
     splitReviewQuota: $('#split-quota').checked,
-    newSolveQuota: parseInt($('#new-solve-quota').value, 10),
-    reviewQuota: parseInt($('#review-quota').value, 10),
+    newSolveQuota: num($('#new-solve-quota').value, 1),
+    reviewQuota: num($('#review-quota').value, 0),
     intervalLadder: ladder.length ? ladder : DEFAULT_SETTINGS.intervalLadder,
     blocklist: settings.blocklist,
     overrideEnabled: $('#override-enabled').checked,
-    overrideCountPerDay: parseInt($('#override-count').value, 10),
-    overrideDurationMin: parseInt($('#override-duration').value, 10),
-    overridePhrase: $('#override-phrase').value,
-    quotaResetHour: parseInt($('#reset-hour').value, 10)
+    overrideCountPerDay: num($('#override-count').value, 1),
+    overrideDurationMin: num($('#override-duration').value, 10),
+    overridePhrase: $('#override-phrase').value || 'I am being weak',
+    quotaResetHour: num($('#reset-hour').value, 3)
   };
-  await send({ type: 'updateSettings', patch });
+  const res = await send({ type: 'updateSettings', patch });
+  if (res?.error) { alert('Save failed: ' + res.error); return; }
   settings = await getSettings();
-  hydrate();
+  await hydrate();
   $('#save-status').textContent = '✓ Saved';
   setTimeout(() => { $('#save-status').textContent = ''; }, 2000);
 }

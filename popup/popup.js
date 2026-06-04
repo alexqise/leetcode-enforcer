@@ -59,8 +59,10 @@ async function render() {
     }
   }
 
-  if (settings.sheetUrl) {
-    $('#open-sheet').href = settings.sheetUrl;
+  const sheetUrl = settings.sheetUrl
+    || (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` : null);
+  if (sheetUrl) {
+    $('#open-sheet').href = sheetUrl;
   } else {
     $('#open-sheet').textContent = '🔌 Connect Google Sheets';
     $('#open-sheet').onclick = async (e) => {

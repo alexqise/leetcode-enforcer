@@ -247,6 +247,8 @@ async function connectGoogle() {
     if (!settings.sheetId) {
       const { spreadsheetId, spreadsheetUrl } = await createSpreadsheet(token);
       await setSettings({ sheetId: spreadsheetId, sheetUrl: spreadsheetUrl });
+    } else if (!settings.sheetUrl) {
+      await setSettings({ sheetUrl: `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` });
     }
     try {
       const user = await fetchCurrentUser();
