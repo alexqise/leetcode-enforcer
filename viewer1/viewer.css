@@ -825,3 +825,12 @@ body.dense .notes { -webkit-line-clamp: 1; }
 *::-webkit-scrollbar-thumb { background: var(--surface-3); border: 3px solid var(--bg); border-radius: 99px; }
 *::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
 *::-webkit-scrollbar-corner { background: transparent; }
+
+/* Hide horizontal scrollbar on the table, keep horizontal scrolling functional */
+.table-wrap::-webkit-scrollbar:horizontal {
+  height: 0;
+  display: none;
+}
+.table-wrap {
+  scrollbar-color: var(--border-2) transparent;
+}
