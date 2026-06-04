@@ -35,21 +35,20 @@ async function hydrate() {
   $('#override-enabled').checked = !!settings.overrideEnabled;
   $('#override-count').value = settings.overrideCountPerDay ?? 1;
   $('#override-duration').value = settings.overrideDurationMin ?? 10;
-  $('#override-phrase').value = settings.overridePhrase ?? 'I am being weak';
+  $('#override-phrase').value = settings.overridePhrase ?? 'the quick brown fox jumps over the lazy dog';
 
   $('#reset-hour').value = settings.quotaResetHour ?? 3;
 
   renderBlocklist();
 
-  const sheetUrl = settings.sheetUrl
-    || (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` : null);
-  if (settings.sheetId) {
-    $('#sheet-status').textContent = 'Connected';
-    $('#open-sheet-link').hidden = false;
-    $('#open-sheet-link').href = sheetUrl;
+  const auth = await send({ type: 'getAuthState' });
+  if (auth?.signedIn) {
+    $('#auth-signed-out').hidden = true;
+    $('#auth-signed-in').hidden = false;
+    $('#auth-email').textContent = auth.email || '(unknown)';
   } else {
-    $('#sheet-status').textContent = 'Not connected';
-    $('#open-sheet-link').hidden = true;
+    $('#auth-signed-out').hidden = false;
+    $('#auth-signed-in').hidden = true;
   }
 
   if (settings.githubEnabled && settings.githubToken) {
@@ -99,26 +98,32 @@ function wire() {
   $('#add-site-btn').addEventListener('click', addSite);
   $('#add-site').addEventListener('keydown', (e) => { if (e.key === 'Enter') addSite(); });
 
-  $('#reconnect-sheet').addEventListener('click', async () => {
-    const res = await send({ type: 'connectGoogle' });
-    if (res.error) alert('Connect failed: ' + res.error);
-    settings = await getSettings();
+  $('#signin-google').addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    const orig = e.target.innerHTML;
+    e.target.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Signing in…</span>';
+    const res = await send({ type: 'signInGoogle' });
+    e.target.disabled = false;
+    e.target.innerHTML = orig;
+    if (!res?.ok) { alert('Sign-in failed: ' + (res?.error || 'unknown')); return; }
+    await hydrate();
+    refreshLeetcodeLoginState();
+  });
+
+  $('#signout').addEventListener('click', async () => {
+    if (!confirm('Sign out of Google? Local data stays.')) return;
+    await send({ type: 'signOut' });
     await hydrate();
   });
 
-  $('#force-sync').addEventListener('click', async () => {
-    const res = await send({ type: 'forceSyncAll' });
-    alert(res.error ? 'Sync failed: ' + res.error : 'Synced.');
-  });
-
-  $('#restyle-sheet').addEventListener('click', async (e) => {
+  $('#force-sync').addEventListener('click', async (e) => {
     e.target.disabled = true;
     const orig = e.target.textContent;
-    e.target.textContent = 'Restyling…';
-    const res = await send({ type: 'restyleSheet' });
+    e.target.textContent = 'Syncing…';
+    const res = await send({ type: 'forceSyncAll' });
     e.target.disabled = false;
     e.target.textContent = orig;
-    alert(res.ok ? 'Sheet restyled — refresh the spreadsheet tab.' : 'Restyle failed: ' + res.error);
+    alert(res?.ok === false ? 'Sync failed: ' + res.error : 'Synced.');
   });
 
   $('#reset-all').addEventListener('click', async () => {
@@ -130,6 +135,8 @@ function wire() {
   });
 
   $('#save').addEventListener('click', save);
+
+  refreshLeetcodeLoginState();
 
   $('#import-history').addEventListener('click', async (e) => {
     e.target.disabled = true;
@@ -265,6 +272,21 @@ function num(val, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+async function refreshLeetcodeLoginState() {
+  const btn = $('#import-history');
+  const hint = $('#import-login-hint');
+  if (!btn || !hint) return;
+  hint.textContent = 'Checking LeetCode login…';
+  const res = await send({ type: 'getLeetcodeLoginStatus' });
+  if (res?.isSignedIn) {
+    btn.disabled = false;
+    hint.textContent = `Signed in to LeetCode as @${res.username}.`;
+  } else {
+    btn.disabled = true;
+    hint.innerHTML = 'Not signed into LeetCode — <a href="https://leetcode.com/accounts/login/" target="_blank">sign in</a>, then reload this page.';
+  }
+}
+
 async function save() {
   const ladder = $('#ladder').value
     .split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n) && n > 0);
@@ -278,7 +300,7 @@ async function save() {
     overrideEnabled: $('#override-enabled').checked,
     overrideCountPerDay: num($('#override-count').value, 1),
     overrideDurationMin: num($('#override-duration').value, 10),
-    overridePhrase: $('#override-phrase').value || 'I am being weak',
+    overridePhrase: $('#override-phrase').value || 'the quick brown fox jumps over the lazy dog',
     quotaResetHour: num($('#reset-hour').value, 3)
   };
   const res = await send({ type: 'updateSettings', patch });

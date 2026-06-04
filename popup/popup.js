@@ -6,8 +6,40 @@ let manualConfidence = null;
 init();
 
 async function init() {
+  const auth = await send({ type: 'getAuthState' });
+  if (!auth?.signedIn) {
+    showAuthGate();
+    return;
+  }
   await render();
   wire();
+}
+
+function showAuthGate() {
+  $('#auth-gate').hidden = false;
+  $('#root').hidden = true;
+  const btn = $('#auth-signin-btn');
+  const label = $('#auth-signin-label');
+  const err = $('#auth-error');
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    err.hidden = true;
+    label.innerHTML = '<span class="spinner" aria-hidden="true"></span> Signing in…';
+    const res = await send({ type: 'signInGoogle' });
+    if (res?.ok) {
+      $('#auth-gate').hidden = true;
+      $('#root').hidden = false;
+      await render();
+      wire();
+      await maybePromptHistoryImport();
+    } else {
+      btn.disabled = false;
+      label.textContent = 'Continue with Google';
+      err.hidden = false;
+      err.textContent = 'Sign-in failed: ' + (res?.error || 'unknown');
+    }
+  });
 }
 
 async function render() {
@@ -28,7 +60,7 @@ async function render() {
   if (state.lastSyncError || state.lastGithubError) {
     $('#sync-err').hidden = false;
     const parts = [];
-    if (state.lastSyncError) parts.push('Sheets: ' + state.lastSyncError);
+    if (state.lastSyncError) parts.push('Sync: ' + state.lastSyncError);
     if (state.lastGithubError) parts.push('GitHub: ' + state.lastGithubError);
     $('#sync-err-msg').textContent = parts.join(' · ');
   } else {
@@ -59,21 +91,26 @@ async function render() {
     }
   }
 
-  const sheetUrl = settings.sheetUrl
-    || (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` : null);
-  if (sheetUrl) {
-    $('#open-sheet').href = sheetUrl;
-    $('#open-sheet').onclick = null;
-    $('#open-sheet').textContent = '📊 Open spreadsheet';
-  } else {
-    $('#open-sheet').textContent = '🔌 Connect Google Sheets';
-    $('#open-sheet').onclick = async (e) => {
+  if (status.signedIn) {
+    const label = status.user?.name || status.user?.email || 'Signed in';
+    $('#auth-label').textContent = label;
+    $('#auth-icon').textContent = '👤';
+    $('#auth-action').onclick = async (e) => {
       e.preventDefault();
-      const res = await send({ type: 'connectGoogle' });
-      if (res && !res.error) {
+      if (!confirm('Sign out of Google? Local data stays.')) return;
+      await send({ type: 'signOut' });
+      await render();
+    };
+  } else {
+    $('#auth-label').textContent = 'Sign in with Google';
+    $('#auth-icon').textContent = '🔐';
+    $('#auth-action').onclick = async (e) => {
+      e.preventDefault();
+      const res = await send({ type: 'signInGoogle' });
+      if (res?.ok) {
         await maybePromptHistoryImport();
       } else if (res?.error) {
-        alert('Connect failed: ' + res.error);
+        alert('Sign-in failed: ' + res.error);
       }
       await render();
     };
@@ -96,8 +133,10 @@ async function render() {
 async function maybePromptHistoryImport() {
   const { state = {} } = await chrome.storage.local.get('state');
   if (state.historyImportPrompted) return;
+  const login = await send({ type: 'getLeetcodeLoginStatus' });
+  if (!login?.isSignedIn) return;
   await chrome.storage.local.set({ state: { ...state, historyImportPrompted: true } });
-  if (!confirm('Connected. Pull your LeetCode history once (marks all as Mastered)? You can also do this later from Settings.')) return;
+  if (!confirm(`Connected. Pull your LeetCode history once (signed in as @${login.username}, marks all as Mastered)? You can also do this later from Settings.`)) return;
   const res = await send({ type: 'importLeetcodeHistory' });
   if (res?.error || res?.ok === false) {
     alert('History import failed: ' + (res?.error || 'unknown'));
@@ -111,12 +150,21 @@ function wire() {
     e.preventDefault();
     chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') });
   });
+  $('#open-viewer').addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: chrome.runtime.getURL('viewer1/viewer.html') });
+  });
   $('#retry-sync').addEventListener('click', async (e) => {
-    e.target.disabled = true;
-    e.target.textContent = '…';
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.dataset.label = btn.textContent;
+    btn.innerHTML = '<span class="spinner" aria-hidden="true"></span>';
+    btn.setAttribute('aria-busy', 'true');
     const res = await send({ type: 'retryLastSync' });
-    e.target.disabled = false;
-    e.target.textContent = 'Retry';
+    btn.removeAttribute('aria-busy');
+    btn.disabled = false;
+    btn.textContent = btn.dataset.label || 'Retry';
     await render();
     if (res?.ok === false) alert('Still failing: ' + res.error);
   });

@@ -14,25 +14,37 @@ async function init() {
   renderBlockGrid();
   $('#quota').value = settings.dailyQuota;
   $('#quota-val').textContent = settings.dailyQuota;
-  if (settings.sheetId) {
-    $('#connect-status').textContent = '✓ Already connected';
-    $('#connect').textContent = 'Continue';
+  const auth = await send({ type: 'getAuthState' });
+  if (auth?.signedIn) {
+    $('#connect-status').textContent = '✓ Signed in as ' + (auth.email || 'you');
+    $('#connect').innerHTML = '<span>Continue →</span>';
+    $('#connect').dataset.signedIn = '1';
   }
   wire();
 }
 
 function wire() {
-  $('#connect').addEventListener('click', async () => {
-    $('#connect-status').textContent = 'Connecting…';
-    if (!settings.sheetId) {
-      const res = await send({ type: 'connectGoogle' });
-      if (res.error) {
-        $('#connect-status').textContent = '✗ ' + res.error;
-        return;
-      }
-      $('#connect-status').textContent = '✓ Connected & spreadsheet created';
+  $('#connect').addEventListener('click', async (e) => {
+    if ($('#connect').dataset.signedIn === '1') {
+      goto(2);
+      return;
     }
-    goto(2);
+    const btn = $('#connect');
+    btn.disabled = true;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner" aria-hidden="true"></span><span>Signing in…</span>';
+    $('#connect-status').textContent = '';
+    const res = await send({ type: 'signInGoogle' });
+    btn.disabled = false;
+    if (!res?.ok) {
+      btn.innerHTML = orig;
+      $('#connect-status').textContent = '✗ ' + (res?.error || 'unknown');
+      return;
+    }
+    $('#connect-status').textContent = '✓ Signed in as ' + (res.email || 'you');
+    btn.dataset.signedIn = '1';
+    btn.innerHTML = '<span>Continue →</span>';
+    setTimeout(() => goto(2), 600);
   });
   $('#skip-1').addEventListener('click', () => goto(2));
 

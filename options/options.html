@@ -140,21 +140,29 @@
 
     <section id="history">
       <h2>LeetCode history</h2>
-      <p class="hint">Pull your accepted-submissions history from LeetCode (you must be signed into leetcode.com in this browser). New entries are added as Mastered, no SRS impact.</p>
+      <p class="hint">Pull your accepted-submissions history from LeetCode. New entries are added as Mastered, no SRS impact.</p>
       <div class="row">
-        <button id="import-history" class="ghost">Import LeetCode history</button>
+        <button id="import-history" class="ghost" disabled>Import LeetCode history</button>
         <span id="import-status"></span>
       </div>
+      <div class="hint" id="import-login-hint">Checking LeetCode login…</div>
     </section>
 
-    <section>
-      <h2>Google Sheets</h2>
-      <div class="row sheet-row">
-        <span id="sheet-status">Not connected</span>
-        <a href="#" id="open-sheet-link" hidden target="_blank">Open</a>
-        <button id="reconnect-sheet" class="ghost">Reconnect</button>
-        <button id="force-sync" class="ghost">Force re-sync</button>
-        <button id="restyle-sheet" class="ghost">Re-style</button>
+    <section id="account">
+      <h2>Account</h2>
+      <p class="hint">Sign in with Google to sync your progress to Supabase. Your data is private to your account.</p>
+      <div id="auth-signed-out">
+        <button id="signin-google" class="primary">
+          <span class="g-icon" aria-hidden="true">G</span>
+          <span>Sign in with Google</span>
+        </button>
+      </div>
+      <div id="auth-signed-in" hidden>
+        <div class="row sheet-row">
+          <span><span id="auth-avatar"></span>Signed in as <strong id="auth-email">…</strong></span>
+          <button id="force-sync" class="ghost">Force re-sync</button>
+          <button id="signout" class="ghost">Sign out</button>
+        </div>
       </div>
     </section>
 

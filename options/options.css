@@ -98,3 +98,10 @@ section.danger { border-color: #F0CECA; background: #FDF6F5; }
   align-items: center;
 }
 #save-status { font-size: 12px; opacity: .6; }
+
+.spinner {
+  width: 12px; height: 12px; border: 2px solid currentColor;
+  border-right-color: transparent; border-radius: 50%; display: inline-block;
+  animation: lce-spin .7s linear infinite; vertical-align: middle;
+}
+@keyframes lce-spin { to { transform: rotate(360deg); } }
