@@ -68,14 +68,7 @@ async function hydrate() {
     $('#gh-connected').hidden = true;
     $('#gh-repo').value = settings.githubRepo || 'leetcode-enforcer-solutions';
     $('#gh-oauth-repo').value = settings.githubRepo || 'leetcode-enforcer-solutions';
-    if (settings.githubClientId) {
-      $('#gh-client-id').value = settings.githubClientId;
-      $('#gh-oauth-ready').hidden = false;
-      $('#gh-oauth-setup').hidden = true;
-    } else {
-      $('#gh-oauth-ready').hidden = true;
-      $('#gh-oauth-setup').hidden = false;
-    }
+    if (settings.githubClientId) $('#gh-client-id').value = settings.githubClientId;
   }
 }
 
@@ -180,79 +173,6 @@ function wire() {
     if (res.ok) alert('OK — connected as ' + res.login);
     else alert('Test failed: ' + res.error);
   });
-
-  document.querySelectorAll('.gh-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.gh-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const mode = tab.dataset.mode;
-      document.querySelectorAll('.gh-mode').forEach(m => { m.hidden = m.dataset.mode !== mode; });
-    });
-  });
-
-  let oauthPollHandle = null;
-
-  $('#gh-save-client-id').addEventListener('click', async () => {
-    const clientId = $('#gh-client-id').value.trim();
-    if (!clientId) { alert('Paste your OAuth App Client ID first.'); return; }
-    await send({ type: 'updateSettings', patch: { githubClientId: clientId } });
-    settings = await getSettings();
-    await hydrate();
-  });
-
-  $('#gh-oauth-change').addEventListener('click', (e) => {
-    e.preventDefault();
-    $('#gh-oauth-ready').hidden = true;
-    $('#gh-oauth-setup').hidden = false;
-  });
-
-  $('#gh-oauth-start').addEventListener('click', async () => {
-    const clientId = settings.githubClientId;
-    const repoName = $('#gh-oauth-repo').value.trim() || 'leetcode-enforcer-solutions';
-    if (!clientId) { alert('Save your OAuth App Client ID first.'); return; }
-    $('#gh-oauth-start').disabled = true;
-    $('#gh-oauth-start').textContent = 'Starting…';
-    const res = await send({ type: 'githubStartOauth', clientId });
-    $('#gh-oauth-start').disabled = false;
-    $('#gh-oauth-start').textContent = 'Connect with GitHub';
-    if (!res.ok) { alert('OAuth start failed: ' + res.error); return; }
-    $('#gh-user-code').textContent = res.userCode;
-    $('#gh-open-verification').href = res.verificationUriComplete || res.verificationUri;
-    $('#gh-oauth-ready').hidden = true;
-    $('#gh-oauth-pending').hidden = false;
-    $('#gh-oauth-status').textContent = 'Waiting for authorization…';
-    window.open(res.verificationUriComplete || res.verificationUri, '_blank');
-    startOauthPolling(repoName);
-  });
-
-  $('#gh-oauth-cancel').addEventListener('click', async () => {
-    stopOauthPolling();
-    await send({ type: 'githubCancelOauth' });
-    $('#gh-oauth-pending').hidden = true;
-    $('#gh-oauth-ready').hidden = false;
-  });
-
-  function startOauthPolling(repoName) {
-    stopOauthPolling();
-    oauthPollHandle = setInterval(async () => {
-      const res = await send({ type: 'githubCheckOauth', repoName });
-      if (!res.ok) {
-        stopOauthPolling();
-        $('#gh-oauth-status').textContent = '✗ ' + res.error;
-        return;
-      }
-      if (res.pending) { $('#gh-oauth-status').textContent = 'Waiting for authorization…'; return; }
-      stopOauthPolling();
-      $('#gh-oauth-pending').hidden = true;
-      settings = await getSettings();
-      await hydrate();
-      alert(`Connected as ${res.owner}. Repo: ${res.repo}`);
-    }, 3000);
-  }
-
-  function stopOauthPolling() {
-    if (oauthPollHandle) { clearInterval(oauthPollHandle); oauthPollHandle = null; }
-  }
 }
 
 function addSite() {
