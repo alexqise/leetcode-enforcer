@@ -21,7 +21,9 @@ function render({ settings, state, due }) {
   const pct = Math.min(100, Math.round(100 * state.solvesToday / Math.max(1, settings.dailyQuota)));
   $('#bar-fill').style.width = pct + '%';
   $('#progress-sub').textContent = `${state.solvesToday} of ${settings.dailyQuota} solved`;
-  $('#streak').textContent = `🔥 ${state.streakDays || 0} day${(state.streakDays === 1) ? '' : 's'}`;
+  const days = state.streakDays || 0;
+  const streakText = $('#streak').querySelector('span');
+  if (streakText) streakText.innerHTML = `<span id="streak-num">${days}</span> day${days === 1 ? '' : 's'} streak`;
 
   const dueList = $('#due-list');
   dueList.innerHTML = '';
@@ -61,20 +63,20 @@ async function loadSuggestions() {
   if (daily && !daily.error) {
     $('#daily-title').textContent = `${daily.number}. ${daily.title}`;
     $('#daily-meta').textContent = `${daily.difficulty}${daily.topics?.length ? ' · ' + daily.topics.slice(0,3).join(', ') : ''}`;
-    $('#daily-cta').href = daily.url;
+    $('#daily-card').href = daily.url;
   } else {
     $('#daily-title').textContent = 'Unable to fetch';
     $('#daily-meta').textContent = 'Are you signed into LeetCode?';
-    $('#daily-cta').href = 'https://leetcode.com/problemset/';
+    $('#daily-card').href = 'https://leetcode.com/problemset/';
   }
   if (random && !random.error) {
     $('#random-title').textContent = `${random.number}. ${random.title}`;
     $('#random-meta').textContent = `${random.difficulty}${random.topics?.length ? ' · ' + random.topics.slice(0,3).join(', ') : ''}`;
-    $('#random-cta').href = random.url;
+    $('#random-card').href = random.url;
   } else {
     $('#random-title').textContent = 'Browse problems';
     $('#random-meta').textContent = '';
-    $('#random-cta').href = 'https://leetcode.com/problemset/';
+    $('#random-card').href = 'https://leetcode.com/problemset/';
   }
 }
 
