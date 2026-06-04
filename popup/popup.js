@@ -63,13 +63,32 @@ async function render() {
     || (settings.sheetId ? `https://docs.google.com/spreadsheets/d/${settings.sheetId}/edit` : null);
   if (sheetUrl) {
     $('#open-sheet').href = sheetUrl;
+    $('#open-sheet').onclick = null;
+    $('#open-sheet').textContent = '📊 Open spreadsheet';
   } else {
     $('#open-sheet').textContent = '🔌 Connect Google Sheets';
     $('#open-sheet').onclick = async (e) => {
       e.preventDefault();
       const res = await send({ type: 'connectGoogle' });
-      if (res.error) alert('Connect failed: ' + res.error);
+      if (res && !res.error) {
+        await maybePromptHistoryImport();
+      } else if (res?.error) {
+        alert('Connect failed: ' + res.error);
+      }
       await render();
+    };
+  }
+
+  if (settings.githubEnabled && settings.githubRepoUrl) {
+    $('#open-github').href = settings.githubRepoUrl;
+    $('#open-github').onclick = null;
+    $('#github-label').textContent = 'Open repo';
+  } else {
+    $('#open-github').href = '#';
+    $('#github-label').textContent = 'Connect GitHub';
+    $('#open-github').onclick = (e) => {
+      e.preventDefault();
+      chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html#github') });
     };
   }
 }
