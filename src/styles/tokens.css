@@ -104,6 +104,12 @@
     letter-spacing: inherit;
   }
 
+  /* Text fields always show the I-beam, including over their padding. */
+  textarea,
+  input:where(:not([type="range"], [type="checkbox"], [type="radio"], [type="button"])) {
+    cursor: text;
+  }
+
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

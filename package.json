@@ -12,6 +12,7 @@
     "format": "biome format --write src"
   },
   "dependencies": {
+    "@base-ui-components/react": "^1.0.0-rc.0",
     "@fontsource-variable/figtree": "^5.2.6",
     "@fontsource/jetbrains-mono": "^5.2.6",
     "react": "^19.1.0",
