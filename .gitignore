@@ -4,3 +4,9 @@
 node_modules/
 .idea/
 .vscode/
+
+# build output
+dist/
+
+# compat symlink for the previously-loaded unpacked path (v2/dist)
+v2/
