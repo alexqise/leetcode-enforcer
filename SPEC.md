@@ -1,5 +1,10 @@
 # LeetCode Enforcer v2 — Rebuild Spec
 
+> **Status (2026-06-10): shipped.** The rebuild described below is complete and
+> promoted to the repo root — `v2/` paths in this document now read as `./`.
+> v1 was retired in the same commit series. Kept as the record of what was
+> decided and why; §7's credential-dependent checks run in daily use.
+
 Greenfield rebuild of the extension in `v2/` as a Vite + React + TypeScript project.
 UI is rebuilt from scratch; the engine is ported file-by-file and typed during the port.
 v1 at the repo root stays loadable and untouched until v2 reaches parity.

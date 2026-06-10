@@ -1,120 +1,60 @@
 # LeetCode Enforcer
 
-A Chrome extension that blocks distracting sites until you solve your daily LeetCode quota. Built-in spaced repetition queue and Google Sheets sync.
+A Chrome (MV3) extension that blocks distracting sites until you solve your daily LeetCode quota. Built-in spaced repetition and private Supabase sync.
 
 ## Why
 
-LC problems are expensive (20-40 min each), not 5-second Anki flashcards — so the backlog needs to be small and the practice needs a real forcing function. This extension uses hard site blocking as that function and surfaces past problems for review at the right time.
+LC problems are expensive (20–40 min each), not 5-second Anki flashcards — so the backlog needs to stay small and the practice needs a real forcing function. This extension uses hard site blocking as that function and surfaces past problems for review at the right time.
 
 ## Features
 
 - **Hard block** YouTube, Instagram, TikTok, Reddit, X, Facebook, Snapchat, Netflix, Hulu, Disney+, Twitch (configurable) until you've solved your daily quota
-- **Auto-detect** accepted submissions on leetcode.com via fetch monkey-patch (MAIN-world)
-- **Inline rating overlay** — confidence (1-5), notes, need-review/mastered toggles
-- **Spaced repetition** with a fixed escalating ladder: 1d → 3d → 7d → 14d → 30d
-- **Three review surfaces**: block screen, popup, inline LC banner
-- **Google Sheets sync** — Notion-styled spreadsheet, write-through, fail loud
-- **Optional GitHub sync** — auto-created **private** repo, one commit per accepted submission, code + per-problem README
-- **Emergency override**: 1/day, 10 min, requires typing "the quick brown fox jumps over the lazy dog"
-- **Strict streak** tracking with 03:00 local-time daily reset
+- **Auto-detect** accepted submissions on leetcode.com via a MAIN-world fetch/XHR/WebSocket patch
+- **Inline rating overlay** — confidence (1–5), notes, need-review/mastered toggles — rendered in a closed Shadow DOM
+- **Spaced repetition** with a configurable escalating ladder (default 1d → 3d → 7d → 14d → 30d)
+- **Review surfaces**: block page, popup, queue-first viewer, inline LC banner
+- **Supabase sync** — problems, settings, and daily state sync privately to your Google account (PKCE OAuth, row-level security)
+- **Optional GitHub sync** — auto-created **private** repo, one commit per accepted submission, code + per-problem README (device-flow OAuth or fine-grained PAT)
+- **Emergency override**: limited uses per day, requires typing a deterrence phrase
+- **Streak** tracking with a 03:00 local-time daily reset
 
-## Installation (development)
+## Stack
 
-### 1. Set up Google OAuth credentials
-
-The extension uses `chrome.identity.launchWebAuthFlow` to talk to Google Sheets. You need to register your own OAuth client as a **Web application** (not "Chrome app" — Google has been turning that flow off, which causes `Error 400: invalid_request — Custom URI scheme is not supported on Chrome apps`).
-
-1. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** → select this folder. Copy the generated extension ID (long alphanumeric string).
-2. Open https://console.cloud.google.com/
-3. Create a project (or pick one)
-4. **APIs & Services → Library** → enable **Google Sheets API**
-5. **APIs & Services → OAuth consent screen** → External → fill in app name, your email. Add scope `.../auth/spreadsheets`. **Add your Google account as a test user** (otherwise Google blocks the flow).
-6. **APIs & Services → Credentials → Create Credentials → OAuth client ID**
-7. **Application type: Web application**
-8. **Authorized redirect URIs**: add **`https://<EXTENSION_ID>.chromiumapp.org/`** (replace `<EXTENSION_ID>` with the ID from step 1 — trailing slash required)
-9. Save. Copy the generated **Client ID** (ends in `.apps.googleusercontent.com`)
-10. Open `manifest.json` → replace `REPLACE_WITH_YOUR_OAUTH_CLIENT_ID...` with your real client ID
-11. Back at `chrome://extensions`, hit the **reload ↻** icon on the LeetCode Enforcer card
-
-### 2. Add icons
-
-Drop your icon PNGs in `icons/`:
-- `icon-16.png`
-- `icon-48.png`
-- `icon-128.png`
-
-The extension will still load without icons; Chrome shows a default puzzle piece.
-
-### 3. First run
-
-After loading the extension, the onboarding wizard opens in a new tab:
-1. **Connect Google** — OAuth grants access to Sheets, creates a new spreadsheet for you
-2. **Set quota** — slider 1-5 problems/day (default 1)
-3. **Confirm blocklist** — uncheck any you don't want, add custom sites
-
-After finishing, the popup opens with an optional "Import LeetCode history" button. Make sure you are logged into leetcode.com in the same browser for history import and daily-challenge fetching to work.
-
-### 4. Optional — connect GitHub (push code to a private repo)
-
-Each accepted submission pushes the code + a per-problem README as a single commit to a **private** repo. The repo is auto-created on first connect.
-
-1. Create a fine-grained PAT at https://github.com/settings/tokens?type=beta
-2. Repository access: **All repositories** (or **Only select repositories** if you're picky — but the extension needs to create the repo on first use, which requires All-repos for `Administration: write`)
-3. Permissions (Repository):
-   - **Administration**: Read and write (needed to create the repo)
-   - **Contents**: Read and write (needed to push commits)
-   - **Metadata**: Read-only (granted automatically)
-4. Paste the token into the GitHub section of the onboarding final step, or any time later from the options page
-5. (Optional) Customize the repo name — default is `leetcode-enforcer-solutions`
-
-The PAT is stored in `chrome.storage.local`, only visible to this extension. Disconnect anytime from options to delete the token locally — the repo and its history are untouched.
-
-#### Repo layout
+React 19 · TypeScript (strict) · Vite + [@crxjs/vite-plugin](https://crxjs.dev) · Tailwind v4 (dusk-signal tokens via `@theme`) · bun · Biome · Vitest. See `SPEC.md` for the architecture and `design.md` for the design system.
 
 ```
-leetcode-enforcer-solutions/
-├── 0001-two-sum/
-│   ├── solution.py
-│   └── README.md
-├── 0002-add-two-numbers/
-│   ├── solution.cpp
-│   └── README.md
-└── …
+manifest.config.ts        crxjs manifest (carries the identity-pinning "key" — never change it)
+src/
+  messages.ts             typed message protocol — single source of truth for all runtime messages
+  background/             MV3 service worker: blocking, quota, alarms, streak, sync orchestration
+  engine/                 pure logic: storage, srs, streak, stats, blocklist, supabase, github, leetcode-api
+  content/
+    inject.ts             MAIN-world submission detector (fragile — do not restructure)
+    overlay/              rating overlay + due banner, React in closed Shadow DOM
+  surfaces/               block / popup / options / onboarding / viewer — one HTML entry + React root each
+  components/             shared dusk-signal components (BannerScene, Dialog, SegmentedBar, …)
+  styles/tokens.css       design tokens (Tailwind @theme)
 ```
 
-Each commit message: `Solve 1. Two Sum [Easy] · 4/5`. The per-problem README lists difficulty, topics, first solved date, accumulated notes, current SRS state, and confidence.
+## Development
 
-Manual entries and imported history are not pushed (no code captured). Multiple languages on the same problem produce `solution.py` and `solution.cpp` etc. side by side; resubmitting in the same language overwrites that file.
+```sh
+bun install
+bun run build        # production build → dist/
+bun run dev          # Vite dev server with extension HMR
+bun run typecheck    # tsc --noEmit
+bun run lint         # biome check src
+bun run test         # vitest (SRS ladder + streak/reset edge cases)
+```
 
-## Daily flow
+Load `dist/` unpacked at `chrome://extensions` (Developer mode → Load unpacked). After a rebuild, press the reload arrow on the extension card — reloads keep `chrome.storage`; removing the extension wipes it.
 
-1. Open a blocked site → redirected to the block page
-2. Block page shows: progress, daily challenge link, 1 random problem, top reviews due, your streak
-3. Click a problem → solve on LC
-4. After "Accepted" verdict → inline overlay appears: rate confidence, optionally take notes, save
-5. Block lifts when `solves today >= quota`
-6. Override available once per day (10 min, requires typing "the quick brown fox jumps over the lazy dog")
+### Identity & auth (important)
 
-## Spreadsheet structure
+`manifest.config.ts` pins the extension ID via the `"key"` field. That ID determines the OAuth redirect URI (`https://<ID>.chromiumapp.org/`) registered with the Supabase project's Google provider, and it keys all stored user data. **Never change the key.** Sign-in flows through Supabase PKCE OAuth using `chrome.identity.launchWebAuthFlow` — no client secrets live in the extension; the Supabase publishable key is safe to ship because row access is enforced by RLS.
 
-Two tabs in the auto-generated sheet:
+To run against your own backend, create a Supabase project with Google auth enabled and three tables — `problems` (unique on `user_id, slug`), `settings` (unique on `user_id`), `day_state` (unique on `user_id, date`) — all with owner-only RLS, then replace `SUPABASE_URL`/`SUPABASE_KEY` in `src/engine/supabase.ts`.
 
-### Problems
-One row per unique problem with current SRS state. Notes accumulate (comma-separated) across all solves/reviews — never overwritten.
+## Data model
 
-### Stats
-- KPI cards: streak, problems this week, total active, total mastered
-- Bar chart: problems solved per day (last 90 days)
-- Stacked bar: difficulty mix (Easy/Medium/Hard %)
-- Line chart: weekly avg confidence over time
-
-## Spec
-
-See `SPEC.md` for the full design document.
-
-## Out of scope (v1)
-
-- Firefox / Edge support
-- LeetCode mobile / cross-browser solve detection
-- Multi-device local-state sync
-- Two-way settings sync (sheet → extension)
+The user is the source of truth: LC auto-detection and history import are convenience helpers, not authoritative. Local `chrome.storage.local` is the working copy; Supabase is the durable copy. Sync is write-through on every solve/review/settings change, and the worker pulls from the cloud on sign-in, on browser startup, and on extension reload. "Force re-sync" in Settings is bidirectional (pull, then push).
