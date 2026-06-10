@@ -180,7 +180,6 @@ function Main() {
     <div className="flex w-[340px] flex-col">
       <header className="flex items-center justify-between px-4 pt-3.5 pb-1">
         <div className="flex items-center gap-2 text-[13px] font-semibold tracking-[-0.015em] text-fg">
-          <BrandIcon size={15} className="text-fg-2" />
           Enforcer
         </div>
         <div className="flex items-center gap-0.5">

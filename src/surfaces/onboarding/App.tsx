@@ -8,7 +8,6 @@ import { Button } from '../../components/Button'
 import {
   AlertCircleIcon,
   ArrowRightIcon,
-  BrandIcon,
   CheckSquareIcon,
   GoogleIcon,
 } from '../../components/icons'
@@ -57,7 +56,6 @@ export function App() {
       <BannerScene variant="sunrise">
         <header className="absolute inset-x-0 top-0 flex items-center justify-between px-10 py-5 max-sm:px-5 max-sm:py-4">
           <div className="flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.015em] text-[#F4F1F6]">
-            <BrandIcon className="shrink-0 text-[rgba(244,241,246,0.7)]" />
             <span>Enforcer</span>
           </div>
           <span className="text-xs tracking-[-0.003em] text-[rgba(244,241,246,0.65)]">Setup</span>

@@ -88,7 +88,6 @@ export function App() {
       <header className="flex shrink-0 items-center justify-between border-b border-border px-6 py-3">
         <div className="flex items-center gap-5">
           <div className="flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.015em] text-fg">
-            <BrandIcon className="text-fg-2" />
             Problems
           </div>
           <nav aria-label="View" className="flex gap-1">
