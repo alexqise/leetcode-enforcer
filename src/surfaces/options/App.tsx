@@ -1,18 +1,15 @@
-// Options — same settings-cards model as v1, dusk-signal skin, shared
-// Dialog for every confirm/notice (SPEC §4, design.md §5.16).
+// Options — an open settings document (user-directed rework, 2026-06-10):
+// onboarding's type scale and rhythm, no cards, hairline-paced sections,
+// label-column form grid, auto-save (no save bar). Shared Dialog for
+// every confirm/notice (design.md §5.16).
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/Button'
 import { Dialog } from '../../components/Dialog'
-import {
-  BrandIcon,
-  GoogleIcon,
-  ListIcon,
-  LockIcon,
-  UserIcon,
-  WarningIcon,
-} from '../../components/icons'
+import { GoogleIcon, ListIcon, LockIcon, UserIcon, WarningIcon } from '../../components/icons'
+import { Slider } from '../../components/Slider'
 import { Spinner } from '../../components/Spinner'
+import { Switch } from '../../components/Switch'
 import { DEFAULT_SETTINGS, getSettings } from '../../engine/storage'
 import type { Settings } from '../../engine/types'
 import { isMsgError, send } from '../../messages'
@@ -32,33 +29,27 @@ type Dlg =
     }
 
 const inputCls =
-  'rounded-md border border-border bg-bg px-3 py-2 text-[12.5px] text-fg transition-colors duration-100 placeholder:text-fg-3 focus:border-border-2 focus:bg-surface-2 focus:outline-none'
-const inputSm = `${inputCls} w-20`
-const inputMono = `${inputCls} w-full font-mono tracking-normal`
+  'cursor-text rounded-none border-0 border-b border-border bg-surface/50 px-2 py-1.5 text-[13px] text-fg transition-colors duration-100 placeholder:text-fg-3 focus:border-fg-3 focus:outline-none'
+const inputSm = `${inputCls} w-12 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`
+const inputMono = `${inputCls} font-mono tracking-normal`
 
 export function App() {
   const [draft, setDraft] = useState<Settings | null>(null)
   const [dlg, setDlg] = useState<Dlg>(null)
   const [dlgBusy, setDlgBusy] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
-  const [saving, setSaving] = useState(false)
   const statusTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const hydrate = useCallback(async () => {
     setDraft(await getSettings())
   }, [])
 
+  // Initial load only. No storage.onChanged re-hydrate: with auto-save this
+  // page is the writer, and re-hydrating on our own round-trips would
+  // clobber in-flight typing.
   useEffect(() => {
     hydrate()
-    const onChanged = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      area: chrome.storage.AreaName,
-    ) => {
-      // Parity with v1: external settings changes re-hydrate the form.
-      if (area === 'local' && changes.settings) hydrate()
-    }
-    chrome.storage.onChanged.addListener(onChanged)
-    return () => chrome.storage.onChanged.removeListener(onChanged)
   }, [hydrate])
 
   useEffect(() => {
@@ -68,7 +59,9 @@ export function App() {
     }
   }, [])
 
-  function flashStatus(text: string, ms = 2000) {
+  useEffect(() => () => clearTimeout(saveTimer.current), [])
+
+  function flashStatus(text: string, ms = 1800) {
     clearTimeout(statusTimer.current)
     setSaveStatus(text)
     statusTimer.current = setTimeout(() => setSaveStatus(''), ms)
@@ -78,201 +71,207 @@ export function App() {
     setDlg({ kind: 'notice', title, body })
   }, [])
 
-  async function save() {
-    if (!draft || saving) return
-    setSaving(true)
-    try {
-      const ladder = draft.intervalLadder.filter((n) => Number.isFinite(n) && n > 0)
-      const res = await send({
-        type: 'updateSettings',
-        patch: {
-          dailyQuota: draft.dailyQuota,
-          splitReviewQuota: draft.splitReviewQuota,
-          newSolveQuota: draft.newSolveQuota,
-          reviewQuota: draft.reviewQuota,
-          intervalLadder: ladder.length ? ladder : DEFAULT_SETTINGS.intervalLadder,
-          blocklist: draft.blocklist,
-          overrideEnabled: draft.overrideEnabled,
-          overrideCountPerDay: draft.overrideCountPerDay,
-          overrideDurationMin: draft.overrideDurationMin,
-          overridePhrase: draft.overridePhrase || DEFAULT_SETTINGS.overridePhrase,
-          quotaResetHour: draft.quotaResetHour,
-        },
-      })
-      if (isMsgError(res)) {
-        notice('Save failed', res.error)
-        return
-      }
-      await hydrate()
-      flashStatus('Saved')
-    } finally {
-      setSaving(false)
+  async function persist(d: Settings) {
+    const ladder = d.intervalLadder.filter((n) => Number.isFinite(n) && n > 0)
+    const res = await send({
+      type: 'updateSettings',
+      patch: {
+        dailyQuota: d.dailyQuota,
+        splitReviewQuota: d.splitReviewQuota,
+        newSolveQuota: d.newSolveQuota,
+        reviewQuota: d.reviewQuota,
+        intervalLadder: ladder.length ? ladder : DEFAULT_SETTINGS.intervalLadder,
+        blocklist: d.blocklist,
+        overrideEnabled: d.overrideEnabled,
+        overrideCountPerDay: d.overrideCountPerDay,
+        overrideDurationMin: d.overrideDurationMin,
+        overridePhrase: d.overridePhrase || DEFAULT_SETTINGS.overridePhrase,
+        quotaResetHour: d.quotaResetHour,
+      },
+    })
+    if (isMsgError(res)) {
+      notice('Save failed', res.error)
+      return
     }
+    flashStatus('Saved')
   }
 
   if (!draft) return null
-  const patch = (p: Partial<Settings>) => setDraft({ ...draft, ...p })
+
+  // Auto-save: every change persists after a short debounce.
+  const patch = (p: Partial<Settings>) => {
+    const next = { ...draft, ...p }
+    setDraft(next)
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => persist(next), 600)
+  }
 
   return (
-    <div className="min-h-screen pb-20">
-      <header className="flex items-center justify-between border-b border-border px-8 py-3.5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.015em] text-fg">
-            <BrandIcon className="text-fg-2" />
-            Enforcer
-          </div>
-          <span className="text-[12.5px] text-fg-3">/ Settings</span>
+    <div className="min-h-screen pb-16">
+      <header className="mx-auto flex max-w-[680px] items-center justify-between px-6 pt-8">
+        <div className="flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.015em] text-fg">
+          Enforcer
         </div>
-        <a
-          href={chrome.runtime.getURL(VIEWER_PATH)}
-          className="flex items-center gap-1.5 rounded-md border border-border-2 px-3 py-1.5 text-xs font-medium text-fg-2 no-underline transition-colors duration-100 hover:border-fg-3 hover:bg-surface-2 hover:text-fg"
-        >
-          <ListIcon size={13} />
-          Problems
-        </a>
+        <div className="flex items-center gap-5">
+          <span
+            aria-live="polite"
+            className={`text-xs text-fg-3 transition-opacity duration-300 ${saveStatus ? 'opacity-100' : 'opacity-0'}`}
+          >
+            {saveStatus || 'Saved'}
+          </span>
+          <a
+            href={chrome.runtime.getURL(VIEWER_PATH)}
+            className="flex items-center gap-1.5 text-xs font-medium text-fg-3 no-underline transition-colors duration-100 hover:text-fg"
+          >
+            <ListIcon size={13} />
+            Problems
+          </a>
+        </div>
       </header>
 
-      <main className="mx-auto flex max-w-[640px] flex-col gap-4 px-6 py-8">
-        <div className="mb-2">
-          <h1 className="m-0 mb-1 text-[22px] font-semibold tracking-[-0.02em] text-fg">
+      <main className="mx-auto flex max-w-[680px] flex-col gap-9 px-6 pt-12 pb-10">
+        <div>
+          <h1 className="m-0 mb-2 text-[26px] font-semibold tracking-[-0.025em] text-fg">
             Settings
           </h1>
-          <p className="m-0 text-[12.5px] tracking-[-0.003em] text-fg-3">
-            Configure your daily quota, blocklist, spaced repetition, and sync.
+          <p className="m-0 max-w-[46ch] text-[13.5px] leading-[1.6] tracking-[-0.003em] text-fg-2">
+            Your daily quota, blocklist, spaced repetition, and sync. Changes save automatically.
           </p>
         </div>
 
-        <Card title="Daily quota" sub="How many problems unlock your day.">
-          <Row label="Problems per day" htmlFor="quota">
-            <div className="flex items-center gap-3">
-              <input
-                id="quota"
-                type="range"
+        <Section title="Daily quota" sub="How many problems unlock your day.">
+          <Row label="Problems per day">
+            <div className="flex items-center gap-4">
+              <Slider
+                aria-label="Problems per day"
+                value={draft.dailyQuota}
+                onChange={(dailyQuota) => patch({ dailyQuota })}
                 min={1}
                 max={5}
-                value={draft.dailyQuota}
-                onChange={(e) => patch({ dailyQuota: Number(e.target.value) })}
-                className="w-36 accent-primary"
+                className="w-44"
               />
-              <span className="rounded-md bg-surface-2 px-2 py-1 font-mono text-[11.5px] text-fg-2">
-                {draft.dailyQuota} / day
+              <span className="font-mono text-[13px] text-fg">
+                {draft.dailyQuota} <span className="text-fg-3">/ day</span>
               </span>
             </div>
           </Row>
-          <Check
-            checked={draft.splitReviewQuota}
-            onChange={(v) => patch({ splitReviewQuota: v })}
-            label="Separate review quota from new-solve quota"
-          />
+          <Row label="Split quotas" hint="Track reviews and new solves separately.">
+            <Switch
+              checked={draft.splitReviewQuota}
+              onChange={(splitReviewQuota) => patch({ splitReviewQuota })}
+              aria-label="Separate review quota from new-solve quota"
+            />
+          </Row>
           {draft.splitReviewQuota && (
-            <div className="mt-1 flex flex-col gap-3 border-l-0 pl-6">
-              <Row label="New solves / day" htmlFor="new-solve-quota">
+            <>
+              <Row label="New solves / day">
                 <input
-                  id="new-solve-quota"
                   type="number"
                   min={0}
                   max={10}
                   value={draft.newSolveQuota}
                   onChange={(e) => patch({ newSolveQuota: numOr(e.target.value, 1) })}
+                  aria-label="New solves per day"
                   className={inputSm}
                 />
               </Row>
-              <Row label="Reviews / day" htmlFor="review-quota">
+              <Row label="Reviews / day">
                 <input
-                  id="review-quota"
                   type="number"
                   min={0}
                   max={10}
                   value={draft.reviewQuota}
                   onChange={(e) => patch({ reviewQuota: numOr(e.target.value, 0) })}
+                  aria-label="Reviews per day"
                   className={inputSm}
                 />
               </Row>
-            </div>
+            </>
           )}
-        </Card>
+        </Section>
 
-        <Card title="Blocklist" sub="Sites that redirect to the block page until quota is met.">
+        <Section title="Blocklist" sub="Sites that redirect to the block page until quota is met.">
           <BlocklistEditor
             blocklist={draft.blocklist}
             onChange={(blocklist) => patch({ blocklist })}
           />
-        </Card>
+        </Section>
 
-        <Card
+        <Section
           title="Spaced repetition"
           sub="The interval ladder a problem walks up after each clean review."
         >
-          <Row label="Interval ladder (days)" htmlFor="ladder">
+          <Row label="Interval ladder" hint="Days between reviews.">
             <LadderInput
               value={draft.intervalLadder}
               onChange={(intervalLadder) => patch({ intervalLadder })}
             />
           </Row>
-        </Card>
+        </Section>
 
-        <Card title="Emergency override" sub="Type a phrase to temporarily bypass the block.">
-          <Check
-            checked={draft.overrideEnabled}
-            onChange={(v) => patch({ overrideEnabled: v })}
-            label="Enable override"
-          />
-          <Row label="Uses per day" htmlFor="override-count">
+        <Section title="Emergency override" sub="Type a phrase to temporarily bypass the block.">
+          <Row label="Enable override">
+            <Switch
+              checked={draft.overrideEnabled}
+              onChange={(overrideEnabled) => patch({ overrideEnabled })}
+              aria-label="Enable override"
+            />
+          </Row>
+          <Row label="Uses per day">
             <input
-              id="override-count"
               type="number"
               min={0}
               max={10}
               value={draft.overrideCountPerDay}
               onChange={(e) => patch({ overrideCountPerDay: numOr(e.target.value, 1) })}
+              aria-label="Override uses per day"
               className={inputSm}
             />
           </Row>
-          <Row label="Duration (minutes)" htmlFor="override-duration">
-            <input
-              id="override-duration"
-              type="number"
-              min={1}
-              max={120}
-              value={draft.overrideDurationMin}
-              onChange={(e) => patch({ overrideDurationMin: numOr(e.target.value, 10) })}
-              className={inputSm}
-            />
+          <Row label="Duration">
+            <div className="flex items-baseline gap-2.5">
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={draft.overrideDurationMin}
+                onChange={(e) => patch({ overrideDurationMin: numOr(e.target.value, 10) })}
+                aria-label="Override duration in minutes"
+                className={inputSm}
+              />
+              <span className="text-xs text-fg-3">minutes</span>
+            </div>
           </Row>
-          <Row label="Passphrase" htmlFor="override-phrase" wide>
+          <Row label="Passphrase">
             <input
-              id="override-phrase"
               type="text"
               value={draft.overridePhrase}
               onChange={(e) => patch({ overridePhrase: e.target.value })}
-              className={`${inputCls} w-full`}
+              aria-label="Override passphrase"
+              className={`${inputCls} w-full max-w-[380px]`}
             />
           </Row>
-        </Card>
+        </Section>
 
-        <Card title="Schedule" sub="When the day rolls over and counters reset.">
-          <Row label="Reset hour (0–23, local)" htmlFor="reset-hour">
+        <Section title="Schedule" sub="When the day rolls over and counters reset.">
+          <Row label="Reset hour" hint="0–23, local time.">
             <input
-              id="reset-hour"
               type="number"
               min={0}
               max={23}
               value={draft.quotaResetHour}
               onChange={(e) => patch({ quotaResetHour: numOr(e.target.value, 3) })}
+              aria-label="Reset hour"
               className={inputSm}
             />
           </Row>
-        </Card>
+        </Section>
 
-        <GithubCard settings={draft} notice={notice} setDlg={setDlg} onChanged={hydrate} />
-        <HistoryCard />
-        <AccountCard notice={notice} setDlg={setDlg} onChanged={hydrate} />
+        <GithubSection settings={draft} notice={notice} setDlg={setDlg} onChanged={hydrate} />
+        <HistorySection />
+        <AccountSection notice={notice} setDlg={setDlg} onChanged={hydrate} />
 
-        <Card
-          title="Reset"
-          sub="Wipe all local data. Your Supabase records are not deleted."
-          danger
-        >
+        <Section title="Reset" sub="Wipe all local data. Your Supabase records are not deleted.">
           <div>
             <Button
               variant="danger"
@@ -294,17 +293,8 @@ export function App() {
               Reset all data
             </Button>
           </div>
-        </Card>
+        </Section>
       </main>
-
-      <footer className="fixed inset-x-0 bottom-0 flex items-center justify-end gap-4 border-t border-border bg-bg/95 px-8 py-3 backdrop-blur-sm">
-        <span aria-live="polite" className="text-xs text-fg-3">
-          {saveStatus}
-        </span>
-        <Button variant="primary" disabled={saving} onClick={save}>
-          {saving ? 'Saving…' : 'Save changes'}
-        </Button>
-      </footer>
 
       <Dialog
         open={dlg?.kind === 'notice'}
@@ -365,19 +355,22 @@ export function App() {
   )
 }
 
-// ---------- Card + form primitives ----------
+// ---------- Section + form primitives ----------
 
-function Card({
+/**
+ * Open settings section (no card box, per principle 7): heading + hint
+ * carry the grouping; a hairline above each section after the first
+ * paces the document.
+ */
+function Section({
   title,
   sub,
-  danger,
   children,
   id,
   tag,
 }: {
   title: string
   sub: ReactNode
-  danger?: boolean
   children: ReactNode
   id?: string
   tag?: string
@@ -385,74 +378,66 @@ function Card({
   return (
     <section
       id={id}
-      className={`rounded-xl border bg-surface p-5 ${danger ? 'border-[rgba(239,111,108,0.3)]' : 'border-border'}`}
+      className="scroll-mt-6 border-t border-border pt-9 [&:first-of-type]:border-t-0 [&:first-of-type]:pt-0"
     >
-      <header className="mb-4">
-        <h2 className="m-0 mb-1 flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.01em] text-fg">
+      <header className="mb-6">
+        <h2 className="m-0 mb-1.5 flex items-baseline gap-2.5 text-[16px] font-semibold tracking-[-0.015em] text-fg">
           {title}
           {tag && (
-            <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-medium tracking-wide text-fg-3">
-              {tag}
-            </span>
+            <span className="text-[11px] font-normal tracking-[-0.003em] text-fg-3">{tag}</span>
           )}
         </h2>
-        <p className="m-0 text-[11.5px] leading-[1.5] tracking-[-0.003em] text-fg-3">{sub}</p>
+        <p className="m-0 max-w-[48ch] text-[12.5px] leading-[1.55] tracking-[-0.003em] text-fg-3">
+          {sub}
+        </p>
       </header>
-      <div className="flex flex-col gap-3">{children}</div>
+      <div className="flex flex-col gap-4">{children}</div>
     </section>
   )
 }
 
-function Row({
-  label,
-  htmlFor,
-  children,
-  wide,
-}: {
-  label: string
-  htmlFor: string
-  children: ReactNode
-  wide?: boolean
-}) {
-  if (wide) {
-    return (
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={htmlFor} className="text-[12.5px] tracking-[-0.003em] text-fg-2">
-          {label}
-        </label>
-        {children}
-      </div>
-    )
-  }
+/**
+ * Form-grid row: fixed label column, left-aligned control column with
+ * content-fitted widths — never full-bleed inputs.
+ */
+function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <label htmlFor={htmlFor} className="text-[12.5px] tracking-[-0.003em] text-fg-2">
-        {label}
-      </label>
-      {children}
+    <div className="grid grid-cols-[180px_1fr] items-center gap-x-6">
+      <div>
+        <div className="text-[13px] tracking-[-0.003em] text-fg-2">{label}</div>
+        {hint && <div className="mt-0.5 text-[11px] tracking-[-0.003em] text-fg-3">{hint}</div>}
+      </div>
+      <div className="flex min-w-0 items-center justify-end">{children}</div>
     </div>
   )
 }
 
-function Check({
-  checked,
+/** Segmented mode switch (two options in a soft pill container). */
+function Segmented<T extends string>({
+  value,
   onChange,
-  label,
+  options,
 }: {
-  checked: boolean
-  onChange: (v: boolean) => void
-  label: string
+  value: T
+  onChange: (v: T) => void
+  options: { value: T; label: string }[]
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-[12.5px] tracking-[-0.003em] text-fg-2">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 accent-primary"
-      />
-      {label}
-    </label>
+    <div className="inline-flex gap-0.5 rounded-lg bg-surface p-[3px]">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`cursor-pointer rounded-md border-0 px-3 py-1.5 text-[12.5px] font-medium tracking-[-0.003em] transition-colors duration-100 ${
+            value === o.value ? 'bg-surface-3 text-fg' : 'bg-transparent text-fg-3 hover:text-fg-2'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -489,7 +474,7 @@ function BlocklistEditor({
         {blocklist.map((d) => (
           <span
             key={d}
-            className="flex items-center gap-1 rounded-full border border-border bg-surface-2 py-1 pr-1.5 pl-2.5 text-xs text-fg-2"
+            className="flex items-center gap-1 rounded-full bg-surface-2 py-1 pr-1.5 pl-2.5 text-xs text-fg-2"
           >
             {d}
             <button
@@ -513,7 +498,8 @@ function BlocklistEditor({
           onKeyDown={(e) => {
             if (e.key === 'Enter') add()
           }}
-          className={`${inputCls} flex-1`}
+          aria-label="Add a site to the blocklist"
+          className={`${inputCls} w-[280px]`}
         />
         <Button variant="outline" onClick={add}>
           Add
@@ -545,10 +531,10 @@ function LadderInput({
 
   return (
     <input
-      id="ladder"
       type="text"
       value={text}
       placeholder="1, 3, 7, 14, 30"
+      aria-label="Interval ladder in days"
       onChange={(e) => {
         setText(e.target.value)
         const ladder = e.target.value
@@ -558,14 +544,14 @@ function LadderInput({
         lastValue.current = ladder
         onChange(ladder)
       }}
-      className={`${inputMono} max-w-[240px]`}
+      className={`${inputMono} w-[200px]`}
     />
   )
 }
 
 // ---------- GitHub ----------
 
-function GithubCard({
+function GithubSection({
   settings,
   notice,
   setDlg,
@@ -671,15 +657,8 @@ function GithubCard({
     await onChanged()
   }
 
-  const tabCls = (active: boolean) =>
-    `cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium transition-colors duration-100 ${
-      active
-        ? 'border-border-2 bg-surface-2 text-fg'
-        : 'border-transparent bg-transparent text-fg-3 hover:text-fg-2'
-    }`
-
   return (
-    <Card
+    <Section
       id="github"
       title="GitHub sync"
       tag="optional"
@@ -693,7 +672,7 @@ function GithubCard({
       {connected ? (
         <>
           <div className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1.5 text-[12.5px] text-fg-2">
+            <span className="flex items-center gap-1.5 text-[13px] text-fg-2">
               <UserIcon className="text-fg-3" />
               Connected as{' '}
               <strong className="font-semibold text-fg">{settings.githubOwner || '?'}</strong>
@@ -760,110 +739,105 @@ function GithubCard({
         </>
       ) : (
         <>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              className={tabCls(mode === 'oauth')}
-              onClick={() => setMode('oauth')}
-            >
-              OAuth (recommended)
-            </button>
-            <button type="button" className={tabCls(mode === 'pat')} onClick={() => setMode('pat')}>
-              Personal access token
-            </button>
-          </div>
+          <Row label="Method">
+            <Segmented
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'oauth', label: 'OAuth' },
+                { value: 'pat', label: 'Access token' },
+              ]}
+            />
+          </Row>
 
           {mode === 'oauth' ? (
             <>
-              <p className="m-0 text-[11.5px] leading-[1.55] text-fg-3">
-                One-time setup: register a GitHub OAuth App at{' '}
-                <a
-                  href="https://github.com/settings/applications/new"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-secondary no-underline hover:underline"
-                >
-                  github.com/settings/applications/new
-                </a>
-                . Set Homepage URL to anything (e.g.{' '}
-                <code className="font-mono text-fg-2">http://localhost</code>), check{' '}
-                <strong>Enable Device Flow</strong>, then copy the <strong>Client ID</strong>.
-              </p>
-              <Row label="Client ID" htmlFor="gh-client-id" wide>
+              <Row label="Client ID" hint="From your GitHub OAuth App.">
                 <input
-                  id="gh-client-id"
                   type="text"
                   value={clientId}
                   placeholder="Iv1.abcd… or 1234abcd…"
                   onChange={(e) => setClientId(e.target.value)}
-                  className={inputMono}
+                  aria-label="GitHub OAuth App client ID"
+                  className={`${inputMono} w-full max-w-[300px]`}
                 />
               </Row>
-              <Row label="Repo name" htmlFor="gh-oauth-repo" wide>
+              <Row label="Repo name">
                 <input
-                  id="gh-oauth-repo"
                   type="text"
                   value={oauthRepo}
                   onChange={(e) => setOauthRepo(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  aria-label="Repository name"
+                  className={`${inputCls} w-full max-w-[300px]`}
                 />
               </Row>
               {!pending ? (
-                <div>
+                <div className="mt-2">
                   <Button variant="primary" disabled={busy} onClick={startOauth}>
                     {busy ? 'Starting…' : 'Authorize via GitHub'}
                   </Button>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-bg p-4">
-                  <p className="m-0 text-[11.5px] text-fg-3">
-                    Enter this code on the GitHub page that opens:
-                  </p>
-                  <div className="font-mono text-[22px] font-medium tracking-[0.12em] text-fg">
-                    {pending.userCode}
+                <Row label="Device code" hint="Enter on the GitHub page that opens.">
+                  <div className="flex flex-col gap-3">
+                    <div className="font-mono text-[24px] font-medium tracking-[0.14em] text-fg">
+                      {pending.userCode}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={pending.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center rounded-lg bg-fg px-3.5 py-[7px] text-[13px] font-semibold tracking-[-0.003em] text-bg no-underline transition-colors duration-100 hover:bg-[#FFFCF7]"
+                      >
+                        Open GitHub
+                      </a>
+                      <Button variant="ghost" onClick={cancelOauth}>
+                        Cancel
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11.5px] text-fg-3">
+                      {pollStatus.startsWith('Waiting') && <Spinner className="h-2.5 w-2.5" />}
+                      {pollStatus}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <a
-                      href={pending.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-md border border-primary bg-primary px-4 py-2 text-[12.5px] font-semibold text-bg no-underline transition-colors duration-100 hover:border-[#FF8456] hover:bg-[#FF8456]"
-                    >
-                      Open GitHub
-                    </a>
-                    <Button variant="ghost" onClick={cancelOauth}>
-                      Cancel
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11.5px] text-fg-3">
-                    {pollStatus.startsWith('Waiting') && <Spinner className="h-2.5 w-2.5" />}
-                    {pollStatus}
-                  </div>
-                </div>
+                </Row>
               )}
+              <p className="m-0 mt-1 max-w-[58ch] text-[11.5px] leading-[1.55] tracking-[-0.003em] text-fg-4">
+                One-time setup: register an OAuth App at{' '}
+                <a
+                  href="https://github.com/settings/applications/new"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-fg-3 no-underline hover:text-secondary hover:underline"
+                >
+                  github.com/settings/applications/new
+                </a>{' '}
+                — any homepage URL, check <strong>Enable Device Flow</strong>, copy the Client ID.
+              </p>
             </>
           ) : (
             <>
-              <Row label="Personal access token" htmlFor="gh-token" wide>
+              <Row label="Access token" hint="Fine-grained PAT.">
                 <input
-                  id="gh-token"
                   type="password"
                   value={token}
                   placeholder="github_pat_… or ghp_…"
                   onChange={(e) => setToken(e.target.value)}
-                  className={inputMono}
+                  aria-label="GitHub personal access token"
+                  className={`${inputMono} w-full max-w-[300px]`}
                 />
               </Row>
-              <Row label="Repo name" htmlFor="gh-repo" wide>
+              <Row label="Repo name">
                 <input
-                  id="gh-repo"
                   type="text"
                   value={patRepo}
                   onChange={(e) => setPatRepo(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  aria-label="Repository name"
+                  className={`${inputCls} w-full max-w-[300px]`}
                 />
               </Row>
-              <div className="flex items-center gap-3">
+              <div className="mt-2 flex items-center gap-3">
                 <Button variant="primary" disabled={busy} onClick={connectPat}>
                   {busy ? 'Connecting…' : 'Connect GitHub'}
                 </Button>
@@ -876,23 +850,23 @@ function GithubCard({
                   Create a fine-grained PAT
                 </a>
               </div>
-              <div className="text-[11.5px] leading-[1.55] text-fg-3">
+              <p className="m-0 mt-1 max-w-[58ch] text-[11.5px] leading-[1.55] tracking-[-0.003em] text-fg-4">
                 Required scope:{' '}
-                <code className="font-mono text-fg-2">Contents: Read and write</code> ·{' '}
-                <code className="font-mono text-fg-2">Administration: Read and write</code> (to
+                <code className="font-mono text-fg-3">Contents: Read and write</code> ·{' '}
+                <code className="font-mono text-fg-3">Administration: Read and write</code> (to
                 create the repo).
-              </div>
+              </p>
             </>
           )}
         </>
       )}
-    </Card>
+    </Section>
   )
 }
 
 // ---------- LeetCode history ----------
 
-function HistoryCard() {
+function HistorySection() {
   const [login, setLogin] = useState<'checking' | { username: string } | 'signedOut'>('checking')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
@@ -917,13 +891,13 @@ function HistoryCard() {
   }
 
   return (
-    <Card
+    <Section
       id="history"
       title="LeetCode history"
       sub="Pull your accepted submissions. New entries are added as Mastered with no SRS impact."
     >
       <div className="flex items-center gap-3">
-        <Button variant="primary" disabled={busy || typeof login !== 'object'} onClick={runImport}>
+        <Button variant="outline" disabled={busy || typeof login !== 'object'} onClick={runImport}>
           {busy ? 'Importing…' : 'Import history'}
         </Button>
         <span aria-live="polite" className="text-[11.5px] text-fg-3">
@@ -950,13 +924,13 @@ function HistoryCard() {
           </>
         )}
       </div>
-    </Card>
+    </Section>
   )
 }
 
 // ---------- Account ----------
 
-function AccountCard({
+function AccountSection({
   notice,
   setDlg,
   onChanged,
@@ -979,14 +953,14 @@ function AccountCard({
   }, [refresh])
 
   return (
-    <Card
+    <Section
       id="account"
       title="Account"
       sub="Sign in with Google to sync your progress. Your data stays private to your account."
     >
       {auth?.signedIn ? (
         <div className="flex flex-wrap items-center gap-3">
-          <span className="flex items-center gap-1.5 text-[12.5px] text-fg-2">
+          <span className="flex items-center gap-1.5 text-[13px] text-fg-2">
             <UserIcon className="text-fg-3" />
             Signed in as{' '}
             <strong className="font-semibold text-fg">{auth.email || '(unknown)'}</strong>
@@ -1022,7 +996,6 @@ function AccountCard({
                 confirmLabel: 'Sign out',
                 onConfirm: async () => {
                   await send({ type: 'signOut' })
-                  await refresh()
                   await onChanged()
                 },
               })
@@ -1033,8 +1006,8 @@ function AccountCard({
         </div>
       ) : (
         <div>
-          <button
-            type="button"
+          <Button
+            variant="outline"
             disabled={busy}
             onClick={async () => {
               setBusy(true)
@@ -1050,13 +1023,12 @@ function AccountCard({
               await refresh()
               await onChanged()
             }}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-border-2 bg-surface-2 px-4 py-2 text-[12.5px] font-semibold text-fg transition-colors duration-100 hover:enabled:border-fg-3 hover:enabled:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {busy ? <Spinner /> : <GoogleIcon size={14} />}
             {busy ? 'Signing in…' : 'Sign in with Google'}
-          </button>
+          </Button>
         </div>
       )}
-    </Card>
+    </Section>
   )
 }
