@@ -1,4 +1,5 @@
 import { getSettings, setSettings, DEFAULT_SETTINGS } from '../lib/storage.js';
+import { confirmDialog, noticeDialog } from '../lib/dialog.js';
 
 const $ = sel => document.querySelector(sel);
 let settings = { ...DEFAULT_SETTINGS };
@@ -77,7 +78,7 @@ function renderBlocklist() {
   for (const d of settings.blocklist) {
     const chip = document.createElement('span');
     chip.className = 'chip';
-    chip.innerHTML = `${escapeHtml(d)}<button title="Remove">×</button>`;
+    chip.innerHTML = `${escapeHtml(d)}<button type="button" title="Remove ${escapeHtml(d)}" aria-label="Remove ${escapeHtml(d)}">×</button>`;
     chip.querySelector('button').addEventListener('click', () => {
       settings.blocklist = settings.blocklist.filter(x => x !== d);
       renderBlocklist();
@@ -105,13 +106,21 @@ function wire() {
     const res = await send({ type: 'signInGoogle' });
     e.target.disabled = false;
     e.target.innerHTML = orig;
-    if (!res?.ok) { alert('Sign-in failed: ' + (res?.error || 'unknown')); return; }
+    if (!res?.ok) {
+      await noticeDialog({ title: 'Sign-in failed', body: res?.error || 'Unknown error.' });
+      return;
+    }
     await hydrate();
     refreshLeetcodeLoginState();
   });
 
   $('#signout').addEventListener('click', async () => {
-    if (!confirm('Sign out of Google? Local data stays.')) return;
+    const ok = await confirmDialog({
+      title: 'Sign out?',
+      body: 'Your local data stays on this device.',
+      confirmLabel: 'Sign out'
+    });
+    if (!ok) return;
     await send({ type: 'signOut' });
     await hydrate();
   });
@@ -119,19 +128,31 @@ function wire() {
   $('#force-sync').addEventListener('click', async (e) => {
     e.target.disabled = true;
     const orig = e.target.textContent;
-    e.target.textContent = 'Syncing…';
+    e.target.innerHTML = '<span class="spinner" aria-hidden="true"></span> Syncing';
     const res = await send({ type: 'forceSyncAll' });
     e.target.disabled = false;
-    e.target.textContent = orig;
-    alert(res?.ok === false ? 'Sync failed: ' + res.error : 'Synced.');
+    if (res?.ok === false) {
+      e.target.textContent = orig;
+      await noticeDialog({ title: 'Sync failed', body: res.error || 'Unknown error.' });
+    } else {
+      e.target.textContent = 'Synced';
+      setTimeout(() => { e.target.textContent = orig; }, 1500);
+    }
   });
 
   $('#reset-all').addEventListener('click', async () => {
-    if (!confirm('Wipe ALL local data? This cannot be undone. The spreadsheet itself is not deleted.')) return;
+    const ok = await confirmDialog({
+      title: 'Reset all data?',
+      body: 'Wipes all local data on this device — problems, streak, settings, and saved tokens. The spreadsheet itself is not deleted. This cannot be undone.',
+      confirmLabel: 'Reset all data',
+      danger: true
+    });
+    if (!ok) return;
     await send({ type: 'resetAll' });
     settings = { ...DEFAULT_SETTINGS };
     await hydrate();
-    alert('Reset complete.');
+    $('#save-status').textContent = 'Reset complete';
+    setTimeout(() => { $('#save-status').textContent = ''; }, 3000);
   });
 
   $('#save').addEventListener('click', save);
@@ -140,7 +161,7 @@ function wire() {
 
   $('#import-history').addEventListener('click', async (e) => {
     e.target.disabled = true;
-    $('#import-status').textContent = 'Importing…';
+    $('#import-status').innerHTML = '<span class="spinner" aria-hidden="true"></span> Importing';
     const res = await send({ type: 'importLeetcodeHistory' });
     e.target.disabled = false;
     if (res?.error || res?.ok === false) {
@@ -157,28 +178,39 @@ function wire() {
   $('#gh-connect').addEventListener('click', async () => {
     const token = $('#gh-token').value.trim();
     const repoName = $('#gh-repo').value.trim() || 'leetcode-enforcer-solutions';
-    if (!token) { alert('Paste a GitHub PAT first.'); return; }
+    if (!token) {
+      await noticeDialog({ title: 'Token required', body: 'Paste a fine-grained personal access token first.' });
+      $('#gh-token').focus();
+      return;
+    }
     $('#gh-connect').disabled = true;
-    $('#gh-connect').textContent = 'Connecting…';
+    $('#gh-connect').innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting';
     const res = await send({ type: 'connectGithub', token, repoName });
     $('#gh-connect').disabled = false;
     $('#gh-connect').textContent = 'Connect GitHub';
-    if (!res.ok) { alert('GitHub connect failed: ' + res.error); return; }
+    if (!res.ok) {
+      await noticeDialog({ title: 'GitHub connection failed', body: res.error || 'Unknown error.' });
+      return;
+    }
     $('#gh-token').value = '';
     settings = await getSettings();
-    await hydrate();
-    alert(`Connected as ${res.owner}. Repo: ${res.repo}`);
+    await hydrate(); // connected status row is the confirmation
   });
   $('#gh-disconnect').addEventListener('click', async () => {
-    if (!confirm('Disconnect GitHub? Local PAT will be deleted. The repo and its contents are kept.')) return;
+    const ok = await confirmDialog({
+      title: 'Disconnect GitHub?',
+      body: 'Removes the saved token from this device. The repo and its commits are kept.',
+      confirmLabel: 'Disconnect'
+    });
+    if (!ok) return;
     await send({ type: 'disconnectGithub' });
     settings = await getSettings();
     await hydrate();
   });
   $('#gh-test').addEventListener('click', async () => {
     const res = await send({ type: 'testGithub' });
-    if (res.ok) alert('OK — connected as ' + res.login);
-    else alert('Test failed: ' + res.error);
+    if (res.ok) await noticeDialog({ title: 'GitHub connected', body: `Authenticated as ${res.login}.` });
+    else await noticeDialog({ title: 'GitHub test failed', body: res.error || 'Unknown error.' });
   });
 
   document.querySelectorAll('.tab').forEach(tab => {
@@ -196,10 +228,14 @@ function wire() {
     const btn = $('#gh-oauth-start');
     const clientId = $('#gh-client-id').value.trim();
     const repoName = $('#gh-oauth-repo').value.trim() || 'leetcode-enforcer-solutions';
-    if (!clientId) { alert('Paste your OAuth App Client ID first.'); return; }
+    if (!clientId) {
+      await noticeDialog({ title: 'Client ID required', body: 'Paste your OAuth App Client ID first.' });
+      $('#gh-client-id').focus();
+      return;
+    }
 
     btn.disabled = true;
-    btn.textContent = 'Starting…';
+    btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Starting';
     $('#gh-oauth-status') && ($('#gh-oauth-status').textContent = '');
 
     const res = await send({ type: 'githubStartOauth', clientId });
@@ -207,7 +243,7 @@ function wire() {
     if (!res.ok) {
       btn.disabled = false;
       btn.textContent = 'Authorize via GitHub';
-      alert('OAuth start failed: ' + res.error);
+      await noticeDialog({ title: "Couldn't start authorization", body: res.error || 'Unknown error.' });
       return;
     }
 
@@ -248,8 +284,7 @@ function wire() {
       originalBtn.disabled = false;
       originalBtn.textContent = 'Authorize via GitHub';
       settings = await getSettings();
-      await hydrate();
-      alert(`Connected as ${res.owner}. Repo: ${res.repo}`);
+      await hydrate(); // connected status row is the confirmation
     }, 3000);
   }
 
@@ -288,6 +323,17 @@ async function refreshLeetcodeLoginState() {
 }
 
 async function save() {
+  const btn = $('#save');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    await doSave();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doSave() {
   const ladder = $('#ladder').value
     .split(',').map(s => parseInt(s.trim(), 10)).filter(n => Number.isFinite(n) && n > 0);
   const patch = {
@@ -304,7 +350,10 @@ async function save() {
     quotaResetHour: num($('#reset-hour').value, 3)
   };
   const res = await send({ type: 'updateSettings', patch });
-  if (res?.error) { alert('Save failed: ' + res.error); return; }
+  if (res?.error) {
+    await noticeDialog({ title: 'Save failed', body: res.error });
+    return;
+  }
   settings = await getSettings();
   await hydrate();
   $('#save-status').textContent = 'Saved';

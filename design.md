@@ -8,12 +8,14 @@ When a user asks for UI changes, **read this file first**. When the user gives a
 
 ## 1 · Core principles
 
-1. **Rationed accent.** The acid lime `#B4F500` is the only color outside the gray/black scale. It is used ONLY for moments that need attention: `due-today` dates, `Active` status icon, the sorted column indicator in a table header, focus rings, and brand-mark accents on the auth gate. Never on default text, never on container backgrounds, never on buttons by default. The gray scale carries 95% of the UI.
+1. **Rationed accent, two roles.** The UI carries two accent colors — **primary** signal orange `#FF6F3C` and **secondary** periwinkle `#97A3FF` — on a warm plum-black neutral scale. Primary marks the user's way forward: progress fill, the hover state of the one primary action, focus rings, the brand dot, the done-state numeral. Secondary marks reference/recall material: review intervals, secondary-link hovers, and the banner sky family. Neither appears on default text, container backgrounds, or resting buttons. The neutral scale still carries 95% of the UI. (Replaces the single acid-lime accent, 2026-06-09.)
 2. **No emojis. Use icons.** Replace `🔥`, `📊`, `⚙`, `🔍`, `★`, `●` etc. with inline SVGs (16-18px stroke icons) or unicode glyphs at carefully chosen sizes. Emojis look unprofessional, render inconsistently across systems, and break the "designed" feel. The status mark icons `●`, `★`, `◌` are acceptable because they are abstract geometric glyphs, not full-color emojis — but prefer inline SVG when introducing new icon affordances.
 3. **Quiet density.** Linear-style. Headers are 12px, body is 13px, cells use 18px vertical padding (12px in compact mode). Generous horizontal padding (24-32px). Borders are hairline (1px) and use the `--border` token so they whisper.
 4. **No layout shift on interaction.** Sort indicators always reserve their space (38px right padding on sortable headers, absolutely positioned glyph). Filter chips don't change height when toggled. Search field height fixed. Table row height stays constant unless the user explicitly clicks an "expand" affordance.
 5. **Viewport-locked, never page-scrolling.** Apps use `height: 100vh` + `overflow: hidden` on body. Scrolling happens inside designated regions (`.table-wrap`, `.filters`) only.
 6. **Soft-black, not pure-black.** Background is `#131316` — a slight warm off-black. Pure `#000000` is too harsh.
+7. **Open content over boxes.** Page content is not wrapped in bordered cards by default. Hierarchy and grouping come from the spacing scale, section labels, and type weight; hover states may tint the background (with a small negative-margin bleed) without resting borders. Boxes are reserved for true containment: modals, inputs, and the rare element that floats above other content. One structural hairline (e.g. the footer `border-top` separating the emergency override) is allowed per page; lists do not get per-row borders.
+8. **Motion conveys state, never decorates.** No entrance/stagger choreography on page load — surfaces appear instantly, fully composed (the user is mid-task or mid-interruption; don't make them watch the UI arrive). No ambient/idle animation: pulsing dots, shimmer loops, background glow ellipses. Transitions exist for state change and interaction feedback only (hover, progress fill, modal open), 100–250ms, ease-out. Skeleton pulse during loading is allowed (it conveys "in progress") and must go static under `prefers-reduced-motion`.
 
 ---
 
@@ -21,43 +23,52 @@ When a user asks for UI changes, **read this file first**. When the user gives a
 
 All colors live in `:root` as CSS custom properties.
 
-### Surfaces (4-step hierarchy)
+**Canonical palette: "dusk-signal" (2026-06-09).** Warm plum-black neutrals + a two-accent system. The block page is the reference implementation; popup, options, viewer, and onboarding still carry the legacy lime/cool-black values and migrate the next time each is touched.
+
+### Surfaces (4-step hierarchy, warm plum-tinted)
 ```
---bg:           #131316   /* canvas — page background */
---surface:      #1A1A1E   /* search input, count pill, table-header-cell hover, brand mark bg */
---surface-2:    #212128   /* subtle elevation, sticky-header bg-on-hover, chip default */
---surface-3:    #2A2B33   /* active chip bg, brand mark surface, expanded notes */
+--bg:           #161216   /* canvas — page background */
+--surface:      #1D181D   /* hover tint for list rows, modal bg, inputs-on-modal */
+--surface-2:    #251F25   /* subtle elevation, chip default */
+--surface-3:    #2F272E   /* progress-segment track, active chip bg */
 ```
 
 ### Borders (hairline)
 ```
---border:       #26272F   /* hairlines, default chip border, default button border */
---border-2:     #34353F   /* hover border, active chip border, scrollbar thumb */
+--border:       #2B242B   /* structural hairlines (footer rule), input borders */
+--border-2:     #3B323A   /* hover border, modal border, "next" progress segment */
 ```
 
 ### Text (3-step hierarchy + faint)
 ```
---fg:           #E8E9EE   /* primary content — titles, sorted column headers, active chip text */
---fg-2:         #A2A5AE   /* secondary content — body cell text, button labels, inactive header */
---fg-3:         #61656F   /* muted — section headings, placeholder, count pills, em-dashes */
---fg-4:         #36383E   /* faint — disabled, neutral chip dots */
+--fg:           #F0EDEA   /* primary content — titles, numerals, active text */
+--fg-2:         #ADA6A6   /* secondary content — labels, body, placeholders */
+--fg-3:         #8A8386   /* muted — section headings, hints, meta (≥4.5:1 on bg & surface) */
+--fg-4:         #3E3840   /* faint — decorative only (resting arrow affordances), never text */
 ```
 
-### Accent (rationed)
+**Contrast floor:** any text the user is meant to read must hit ≥4.5:1 against its surface. Placeholders use `--fg-2`, not `--fg-3` — a placeholder is an instruction, not decoration.
+
+### Accents (two roles — see principle 1)
 ```
---acc:          #B4F500   /* acid lime — see "rationed accent" principle */
---acc-dim:      rgba(180, 245, 0, 0.10)   /* hover bg for accent-keyed elements */
+--primary:       #FF6F3C                      /* signal orange — the way forward */
+--primary-dim:   rgba(255, 111, 60, 0.12)     /* ::selection, soft primary tints */
+--secondary:     #97A3FF                      /* periwinkle — recall/reference accents */
+--secondary-dim: rgba(151, 163, 255, 0.12)
 ```
 
 ### Status colors (functional, not decorative)
 ```
---easy:         #4FCF8B   /* Easy difficulty, level-4 confidence */
---medium:       #E8B547   /* Medium difficulty, level-2/3 confidence */
---hard:         #F26F6F   /* Hard difficulty, overdue dates, level-1 confidence */
---mastered:     #E8C847   /* Mastered status icon */
+--easy:         #57C690   /* Easy difficulty, level-4 confidence */
+--medium:       #E2A95B   /* Medium difficulty, level-2/3 confidence, streak flame */
+--hard:         #EF6F6C   /* Hard difficulty, destructive actions, errors */
+--mastered:     #E8C847   /* Mastered status icon (legacy value, retune on migration) */
 ```
 
-Easy/Medium/Hard colors are MUTED, not vibrant — desaturated so the table doesn't look like a Christmas tree.
+Easy/Medium/Hard colors are MUTED, not vibrant — desaturated so lists don't look like a Christmas tree.
+
+### Legacy palette (pre-2026-06-09)
+Cool-black neutrals (`--bg #131316`, `--fg #E8E9EE`, `--fg-3 #7E828E`, borders `#26272F`/`#34353F`) with single acid-lime accent `--acc #B4F500`. Still live in `popup/`, `options/`, `viewer1/`, `onboarding/`; replace with the dusk-signal tokens above when those surfaces are next touched. Lime's former jobs split: progress/focus/active → `--primary`; informational accents → `--secondary`.
 
 ---
 
@@ -243,8 +254,31 @@ For options/settings surfaces. Each setting group lives in a self-contained card
 - A `tag` pill (10px, `--surface-2` bg, `--border`) can sit next to the title to mark "optional" or "beta".
 - Danger card variant: red-tinted top gradient + softened red border (`rgba(242,111,111,0.20)`). Hosts the danger-btn variant inside.
 
-### 5.12 — Modal (confirmation / destructive action)
+### 5.12 — Primary action + demoted alternate
+When a surface offers the user a "do this next" choice between a recommended path and a fallback (e.g. daily challenge vs. random problem on the block page), never render them as twin cards with competing CTAs. One clear next step:
+- **Primary (canonical, open variant — per principle 7):** no card box, no CTA chip. An open stack inside the page flow: small `--fg-3` label ("Daily challenge") → the problem **title as the link** (19–21px, weight 600, `--fg`) with a trailing arrow SVG (`--fg-4` at rest) → muted meta line. On hover the title and arrow turn `--primary` and the arrow nudges +3px right. The whole stack is one anchor. Never a solid-color button chip for a navigation action.
+- **Alternate:** a plain text row beneath — `--fg-3` lead-in ("or try a random one:"), `--fg-2` link (hover `--secondary`) with a small ↗ SVG. Keep the link's trailing words + arrow in a `white-space: nowrap` span so the arrow never wraps alone.
+- **Compact surfaces (popup):** the bordered-card variant with a CTA chip is still acceptable where the open stack lacks room to breathe; prefer migrating to the open variant when touched.
+
+### 5.13 — Earned numeral hero
+A large display number (64–88px, weight 600, letter-spacing ~-0.035em) is allowed **only when the number is the page's answer** — e.g. "how many problems until the block lifts". It is solid `--fg`; switch to solid `--primary` only for the zero/done state. Never gradient-filled (`background-clip: text` is banned), never haloed, never decorative stat-card filler. Baseline-align an 18–20px `--fg-2` label beside it; mono sub-line below. The hero sits as open content (no panel/box).
+
+**Quota progress is always a segmented bar** — one segment per problem (`--primary` solved, `--border-2` current target, `--surface-3` remaining), 4–6px tall, 3–4px gaps, pill radius. Never a continuous percentage fill; the quota is a count of discrete solves and the bar should read as one.
+
+### 5.14 — Open list rows
+Short lists (≤ ~5 rows: reviews due, recent items) use open rows, not bordered row-cards and (per principle 7) not per-row hairlines: rows separated by vertical padding alone (~9px each side), hover = `--surface` bg tint with a small negative-margin bleed and `--r` radius. Lead with a 6px status dot when rows carry difficulty/status; trailing meta in mono (`--secondary` for recall data like review intervals, with the difficulty word in its muted status color). Empty state is a plain `--fg-3` sentence, no dashed placeholder box. (Hairline-separated rows remain in the popup until its migration.)
+
+### 5.15 — Banner cover (Notion-style page header)
+Full-bleed decorative header for full-page surfaces that need identity (the block page is the reference). Rules:
+- **Inline SVG scene, never a raster asset** — ships offline, zero requests, crisp at any DPI. The block page's scene: dusk-sky `linearGradient` (deep indigo `#1B1733` → mauve → `#74404F` at the horizon), a `--primary` sun disc with a soft radial glow, three layered ridge silhouettes darkening toward the foreground (front ridge near `--bg`), sparse 1–1.5px periwinkle stars, two thin `--secondary` contour strokes, and a `feTurbulence` grain rect at ~5% opacity.
+- **Geometry:** `viewBox="0 0 1440 232"`, height 232px desktop / 176px mobile, `preserveAspectRatio="xMaxYMax slice"` so the focal sun survives narrow viewports and the horizon stays anchored on wide ones. **No bottom border** — the scene's foreground ridge sits near `--bg` so the banner dissolves into the page; the composition ends the header, not a line.
+- **Topbar floats over the art** (absolute, full width): brand in near-white, and any chip on imagery uses the glass treatment — `rgba` dark fill + 1px `rgba(255,255,255,0.14)` border + `backdrop-filter: blur(6px)`. Glass is allowed *only* here (legibility over imagery), never on flat surfaces.
+- Content below starts as open flow (no overlap panel). Scene composition may vary per surface, but stays in the palette's hue family and stays **static** — no parallax, no ambient animation (principle 8).
+
+### 5.16 — Modal (confirmation / destructive action)
 For the override modal and other gated confirmations.
+
+**Never use native `alert()` / `confirm()`** — they're unstyled, blocking, and unreliable inside extension popups. For simple confirm/notice dialogs, import `confirmDialog` / `noticeDialog` from `lib/dialog.js` (implements this pattern; requires the `.dlg-*` styles block in the surface's CSS). Destructive confirms pass `danger: true` — red mark, red primary, and initial focus lands on Cancel so Enter can't destroy data. Redundant success dialogs are noise: when the UI itself re-renders to show the new state (e.g. "Connected as X" status row), don't also announce it.
 - Backdrop: `position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000`
 - Card: `--surface` bg, 1px `--border-2`, 12px radius, padding 24px, max-width 440px, shadow `0 24px 64px rgba(0,0,0,0.5)`
 - **Head row:** small mark icon (32×32, tinted by intent — `--medium` for warning, `--hard` for destructive) + title (16px, weight 600, letter-spacing -0.015em)
@@ -330,6 +364,13 @@ Otherwise CSS `display` will override the HTML hidden attribute (this has bitten
 - **Loading state on a button:** disable, set `pointer-events: none`, replace label with inline SVG spinner (12-14px, currentColor, animated via `@keyframes spin`). Never use `…` (three dots) as a loading affordance — it doesn't communicate "in progress".
 - **No `transform: translateY(-1px)` lift on hover** for table rows or buttons. Causes paint cost and feels Bootstrap-y. Linear doesn't lift things.
 
+### Banned decorative patterns
+These read as template/AI styling and are never intentional here:
+- **Gradient text** — `background-clip: text` over a gradient. Use a solid color; emphasis comes from weight and size.
+- **Accent side-stripes/rails** — `border-left`/`border-right` (or a pseudo-element) wider than 1px as a colored accent on cards, rows, or callouts, including slide-in-on-hover rails. Use full borders, bg tints, or nothing.
+- **Decorative background glows** — fixed radial-gradient haze/ellipses behind content. Atmosphere is carried by the surface hierarchy, not painted on.
+- **Entrance stagger choreography** — sequential fade-up of sections on load (see principle 8).
+
 ---
 
 ## 9 · Keyboard shortcuts
@@ -367,3 +408,5 @@ Then update this design.md to call out the exception under the relevant section.
 
 - **2026-06-04** — Initial document. Captures viewer1's iterated design state. Source palette is the post-color-lift soft-black (`#131316` bg, etc). No-emoji rule established. Multi-state filter chip pattern documented. Reserved-space sort indicator pattern documented.
 - **2026-06-04** — Popup, options, and block pages migrated from the legacy Notion-light palette to the Linear-dark guideline. Sentence-case section labels everywhere; all emoji (🔥 ⭐ 🎲 📚 ✓ ✗ 👤 🔐) replaced with inline outline SVG icons. Streak chip standardized: flame SVG (`--medium` color) + mono count, both popup and block pages render it identically. Added §5.11 (Settings card pattern) and §5.12 (Modal pattern) to document the head/body card and the override-confirm modal first introduced in options/block.
+- **2026-06-09** — Block page rebuilt to production quality; several guideline-level changes extracted from that work. (1) `--fg-3` lifted `#61656F` → `#7E828E` to meet the new ≥4.5:1 contrast floor for readable text; placeholders moved from `--fg-3` to `--fg-2`; other surfaces adopt on next touch. (2) New principle 7: motion conveys state, never decorates — no load choreography, no ambient animation (the block page's entrance stagger, pulsing brand dot, and shimmer loop were removed). (3) New "Banned decorative patterns" list under §8: gradient text, accent side-rails, decorative background glows, entrance staggers. (4) New patterns: §5.12 primary action card + demoted alternate (daily challenge is now the block page's single primary action; random problem is a text-row alternate), §5.13 earned numeral hero, §5.14 hairline list rows. Modal pattern renumbered §5.12 → §5.15. Streak chip copy standardized to "N-day streak". Popup + options polished to the same guidelines in the same pass: new `--fg-3`/placeholder values adopted, popup quota bar switched from continuous fill to the segmented pattern (now documented in §5.13), popup review queue moved to §5.14 hairline rows, options brand/crumb corrected to "Enforcer / Settings", async buttons standardized on the spinner loading pattern. Hardening pass: all native `alert()`/`confirm()` replaced with `lib/dialog.js` confirm/notice modals (rule added to §5.15), double-submission guards, popup review queue capped at 8 with a "View all" escape hatch, search empty/race states handled.
+- **2026-06-09 (later)** — User-directed visual redesign, block page first. (1) **New canonical palette "dusk-signal"**: warm plum-black neutrals + two accents — primary signal orange `#FF6F3C`, secondary periwinkle `#97A3FF` — replacing cool-black + acid lime (§2 rewritten; legacy values kept there for un-migrated surfaces; principle 1 updated). (2) **Banner cover pattern** (new §5.15): Notion-style full-bleed header as an inline SVG dusk scene (gradient sky, primary sun, layered ridges, stars, grain), topbar floating over it with glass chips; modal renumbered §5.15 → §5.16. (3) **New principle 7 "Open content over boxes"**: no bordered cards/hairlines in main page content — spacing, labels, and weight carry the structure; one structural hr per page (footer). Block page's hero panel, primary-action card, CTA chip, and per-row hairlines all removed accordingly; §5.12 now specifies the open title-is-the-link pattern with arrow affordance (solid button chips banned for navigation actions), §5.14 is spacing-separated open rows. Motion principle renumbered 7 → 8. Popup/options/viewer/onboarding migrate to all of the above on next touch.

@@ -1,7 +1,10 @@
+import { confirmDialog, noticeDialog } from '../lib/dialog.js';
+
 const $ = sel => document.querySelector(sel);
 
 let picked = null;
 let manualConfidence = null;
+let authBusy = false;
 
 init();
 
@@ -35,7 +38,7 @@ function showAuthGate() {
       await maybePromptHistoryImport();
     } else {
       btn.disabled = false;
-      label.textContent = 'Continue with Google';
+      label.textContent = 'Sign in with Google';
       err.hidden = false;
       err.textContent = 'Sign-in failed: ' + (res?.error || 'unknown');
     }
@@ -44,17 +47,33 @@ function showAuthGate() {
 
 async function render() {
   const status = await send({ type: 'getStatus' });
-  if (!status || status.error) return;
+  if (!status || status.error) {
+    $('#sync-err').hidden = false;
+    $('#sync-err-msg').textContent = 'Enforcer background unavailable — try reloading the extension.';
+    return;
+  }
   const { settings, state, due, blockActive } = status;
 
   $('#progress-text').textContent = `${state.solvesToday} / ${settings.dailyQuota}`;
-  const pct = Math.min(100, Math.round(100 * state.solvesToday / Math.max(1, settings.dailyQuota)));
-  $('#bar-fill').style.width = pct + '%';
+  const quota = Math.max(1, settings.dailyQuota);
+  const bar = $('#bar');
+  bar.textContent = '';
+  bar.setAttribute('aria-valuemax', quota);
+  bar.setAttribute('aria-valuenow', Math.min(state.solvesToday, quota));
+  bar.setAttribute('aria-valuetext', `${state.solvesToday} of ${settings.dailyQuota} solved`);
+  for (let i = 0; i < quota; i++) {
+    const seg = document.createElement('div');
+    seg.className = 'bar-seg';
+    if (i < state.solvesToday) seg.classList.add('on');
+    else if (i === state.solvesToday) seg.classList.add('next');
+    bar.appendChild(seg);
+  }
   $('#streak-num').textContent = String(state.streakDays || 0);
+  const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
   $('#block-state').textContent = blockActive
     ? 'Blocking is active.'
     : (state.overrideActiveUntil
-      ? `Override active until ${new Date(state.overrideActiveUntil).toLocaleTimeString()}.`
+      ? `Override active until ${timeFmt.format(new Date(state.overrideActiveUntil))}.`
       : 'Quota met — sites unblocked.');
 
   if (state.lastSyncError || state.lastGithubError) {
@@ -63,6 +82,7 @@ async function render() {
     if (state.lastSyncError) parts.push('Sync: ' + state.lastSyncError);
     if (state.lastGithubError) parts.push('GitHub: ' + state.lastGithubError);
     $('#sync-err-msg').textContent = parts.join(' · ');
+    $('#sync-err-msg').title = parts.join(' · ');
   } else {
     $('#sync-err').hidden = true;
   }
@@ -73,21 +93,34 @@ async function render() {
   if (due.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'due-empty';
-    empty.textContent = 'Nothing due — you’re clear.';
+    empty.textContent = 'No reviews due today.';
     dueEl.appendChild(empty);
   } else {
-    for (const p of due) {
+    for (const p of due.slice(0, 8)) {
       const row = document.createElement('div');
       row.className = 'due-row';
+      const dot = document.createElement('span');
+      dot.className = `due-dot ${(p.difficulty || '').toLowerCase()}`;
       const a = document.createElement('a');
       a.href = p.url; a.target = '_blank';
       a.textContent = `${p.number ? p.number + '. ' : ''}${p.title}`;
+      a.title = a.textContent;
       a.className = 'due-title';
       const meta = document.createElement('span');
       meta.className = 'due-meta';
       meta.textContent = `${p.difficulty} · ${p.srsIntervalDays}d`;
-      row.appendChild(a); row.appendChild(meta);
+      row.append(dot, a, meta);
       dueEl.appendChild(row);
+    }
+    if (due.length > 8) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'due-more';
+      more.textContent = `View all ${due.length} in Problems`;
+      more.addEventListener('click', () => {
+        chrome.tabs.create({ url: chrome.runtime.getURL('viewer1/viewer.html') });
+      });
+      dueEl.appendChild(more);
     }
   }
 
@@ -102,22 +135,34 @@ async function render() {
     if (authIcon) authIcon.outerHTML = ICON_USER.replace('<svg', '<svg id="auth-icon-out"');
     authLink.onclick = async (e) => {
       e.preventDefault();
-      if (!confirm('Sign out of Google? Local data stays.')) return;
-      await send({ type: 'signOut' });
-      await render();
+      if (authBusy) return;
+      authBusy = true;
+      const ok = await confirmDialog({
+        title: 'Sign out?',
+        body: 'Your local data stays on this device.',
+        confirmLabel: 'Sign out'
+      });
+      if (ok) {
+        await send({ type: 'signOut' });
+        await render();
+      }
+      authBusy = false;
     };
   } else {
     $('#auth-label').textContent = 'Sign in with Google';
     if (authIcon) authIcon.outerHTML = ICON_LOCK.replace('<svg', '<svg id="auth-icon-out"');
     authLink.onclick = async (e) => {
       e.preventDefault();
+      if (authBusy) return;
+      authBusy = true;
       const res = await send({ type: 'signInGoogle' });
       if (res?.ok) {
         await maybePromptHistoryImport();
       } else if (res?.error) {
-        alert('Sign-in failed: ' + res.error);
+        await noticeDialog({ title: 'Sign-in failed', body: res.error });
       }
       await render();
+      authBusy = false;
     };
   }
 
@@ -141,12 +186,17 @@ async function maybePromptHistoryImport() {
   const login = await send({ type: 'getLeetcodeLoginStatus' });
   if (!login?.isSignedIn) return;
   await chrome.storage.local.set({ state: { ...state, historyImportPrompted: true } });
-  if (!confirm(`Connected. Pull your LeetCode history once (signed in as @${login.username}, marks all as Mastered)? You can also do this later from Settings.`)) return;
+  const ok = await confirmDialog({
+    title: 'Import LeetCode history?',
+    body: `Signed in as @${login.username}. One-time pull of your accepted submissions; entries are added as Mastered with no review impact. You can also do this later from Settings.`,
+    confirmLabel: 'Import'
+  });
+  if (!ok) return;
   const res = await send({ type: 'importLeetcodeHistory' });
   if (res?.error || res?.ok === false) {
-    alert('History import failed: ' + (res?.error || 'unknown'));
+    await noticeDialog({ title: 'Import failed', body: res?.error || 'Unknown error.' });
   } else {
-    alert(`Imported ${res.imported} problems.`);
+    await noticeDialog({ title: 'Import complete', body: `Imported ${res.imported} problems.` });
   }
 }
 
@@ -166,12 +216,11 @@ function wire() {
     btn.dataset.label = btn.textContent;
     btn.innerHTML = '<span class="spinner" aria-hidden="true"></span>';
     btn.setAttribute('aria-busy', 'true');
-    const res = await send({ type: 'retryLastSync' });
+    await send({ type: 'retryLastSync' });
     btn.removeAttribute('aria-busy');
     btn.disabled = false;
     btn.textContent = btn.dataset.label || 'Retry';
-    await render();
-    if (res?.ok === false) alert('Still failing: ' + res.error);
+    await render(); // banner re-renders with the current error state — it is the feedback
   });
 
   $('#manual-query').addEventListener('keydown', (e) => {
@@ -179,13 +228,16 @@ function wire() {
   });
 
   let searchTimer;
+  let searchSeq = 0;
   $('#manual-query').addEventListener('input', (e) => {
     clearTimeout(searchTimer);
     const q = e.target.value.trim();
-    if (!q) { $('#manual-results').innerHTML = ''; return; }
+    if (!q) { searchSeq++; $('#manual-results').innerHTML = ''; return; }
+    const seq = ++searchSeq;
     searchTimer = setTimeout(async () => {
       const results = await send({ type: 'searchCatalog', query: q, limit: 8 });
-      renderSearchResults(results || []);
+      if (seq !== searchSeq) return; // a newer query superseded this response
+      renderSearchResults(Array.isArray(results) ? results : [], q);
     }, 180);
   });
 
@@ -198,8 +250,9 @@ function wire() {
   });
 
   $('#manual-cancel').addEventListener('click', () => resetManualForm());
-  $('#manual-save').addEventListener('click', async () => {
-    if (!picked) return;
+  $('#manual-save').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (!picked || btn.disabled) return;
     const payload = {
       ...picked,
       confidence: manualConfidence,
@@ -207,18 +260,34 @@ function wire() {
       needReview: $('#manual-need').checked,
       mastered: $('#manual-master').checked
     };
+    $('#manual-err').textContent = '';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Saving';
     const res = await send({ type: 'manualEntry', payload });
-    if (res.error) { alert('Save failed: ' + res.error); return; }
+    btn.disabled = false;
+    btn.textContent = 'Save';
+    if (res.error) {
+      $('#manual-err').textContent = 'Save failed: ' + res.error;
+      return;
+    }
     resetManualForm();
     await render();
   });
 }
 
-function renderSearchResults(items) {
+function renderSearchResults(items, query) {
   const el = $('#manual-results');
   el.innerHTML = '';
+  if (items.length === 0) {
+    const none = document.createElement('div');
+    none.className = 'no-match';
+    none.textContent = `No matches for “${query}”.`;
+    el.appendChild(none);
+    return;
+  }
   for (const p of items) {
-    const row = document.createElement('div');
+    const row = document.createElement('button');
+    row.type = 'button';
     row.className = 'item';
     row.innerHTML = `<div><strong>${p.number}.</strong> ${escapeHtml(p.title)}</div>
       <div class="meta">${p.difficulty}${p.topics?.length ? ' · ' + p.topics.slice(0,3).join(', ') : ''}</div>`;
@@ -238,6 +307,7 @@ function choosePicked(p) {
 function resetManualForm() {
   picked = null; manualConfidence = null;
   $('#manual-picked').textContent = '';
+  $('#manual-err').textContent = '';
   $('#manual-notes').value = '';
   $('#manual-need').checked = false;
   $('#manual-master').checked = false;

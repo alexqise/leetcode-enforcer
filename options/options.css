@@ -13,7 +13,7 @@
 
   --fg:           #E8E9EE;
   --fg-2:         #A2A5AE;
-  --fg-3:         #61656F;
+  --fg-3:         #7E828E;
   --fg-4:         #36383E;
 
   --acc:          #B4F500;
@@ -24,6 +24,8 @@
   --r-sm: 4px;
   --r:    6px;
   --r-lg: 8px;
+
+  --z-modal-backdrop: 1000;
 }
 
 * { box-sizing: border-box; }
@@ -185,7 +187,7 @@ button, input, textarea, select {
 .tag {
   font-size: 10px;
   font-weight: 500;
-  color: var(--fg-3);
+  color: var(--fg-2);
   background: var(--surface-2);
   border: 1px solid var(--border);
   padding: 1px 8px;
@@ -238,7 +240,7 @@ button, input, textarea, select {
   border-color: var(--border-2);
   background: var(--surface-2);
 }
-.input::placeholder { color: var(--fg-3); }
+.input::placeholder { color: var(--fg-2); }
 .input.small { width: 100px; }
 .input.mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -247,6 +249,9 @@ button, input, textarea, select {
 
 /* Inline 'Add' row should grow the text input */
 .row.inline > input.input { flex: 1; min-width: 0; }
+
+/* Labeled rows: input takes the remaining space (per design.md §5.11) */
+.row > .input:not(.small) { flex: 1; min-width: 200px; }
 
 /* Range slider */
 input[type="range"] {
@@ -417,6 +422,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
   background: rgba(242, 111, 111, 0.10);
   border-color: rgba(242, 111, 111, 0.25);
   color: var(--hard);
+  align-self: flex-start;
 }
 .btn.danger-btn:hover {
   background: rgba(242, 111, 111, 0.18);
@@ -573,6 +579,93 @@ code {
   vertical-align: middle;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Dialog (lib/dialog.js, per design.md §5.16) ---------- */
+
+.dlg-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop);
+  padding: 16px;
+}
+
+.dlg {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  padding: 24px;
+  width: min(440px, 100%);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  animation: dlg-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dlg-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dlg { animation: none; }
+}
+
+.dlg-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dlg-mark {
+  width: 32px; height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--fg-2);
+}
+.dlg-mark.danger {
+  background: rgba(242, 111, 111, 0.10);
+  border-color: rgba(242, 111, 111, 0.25);
+  color: var(--hard);
+}
+
+.dlg-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+
+.dlg-body {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--fg-2);
+  letter-spacing: -0.003em;
+  overflow-wrap: anywhere;
+}
+
+.dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn.primary.danger {
+  background: var(--hard);
+  border-color: var(--hard);
+  color: var(--bg);
+}
+.btn.primary.danger:hover {
+  background: #FF8989;
+  border-color: #FF8989;
+}
 
 /* ---------- Scrollbars ---------- */
 

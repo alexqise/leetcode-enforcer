@@ -13,7 +13,7 @@
 
   --fg:           #E8E9EE;
   --fg-2:         #A2A5AE;
-  --fg-3:         #61656F;
+  --fg-3:         #7E828E;
   --fg-4:         #36383E;
 
   --acc:          #B4F500;
@@ -27,6 +27,8 @@
   --r-sm: 4px;
   --r:    6px;
   --r-lg: 8px;
+
+  --z-modal-backdrop: 1000;
 }
 
 * { box-sizing: border-box; }
@@ -161,14 +163,16 @@ button, input, textarea {
   margin-top: 14px;
 }
 
-.auth-cta .spinner {
-  width: 13px; height: 13px;
+.spinner {
+  width: 12px; height: 12px;
   border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
   display: inline-block;
   animation: spin 0.7s linear infinite;
+  vertical-align: middle;
 }
+.auth-cta .spinner { width: 13px; height: 13px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Main popup shell ---------- */
@@ -313,24 +317,24 @@ button, input, textarea {
 }
 
 .bar {
+  display: flex;
+  gap: 3px;
   height: 4px;
-  background: var(--surface-2);
-  border-radius: 99px;
-  overflow: hidden;
   margin-bottom: 8px;
 }
-.bar-fill {
-  height: 100%;
-  background: var(--acc);
-  width: 0%;
+.bar-seg {
+  flex: 1;
+  background: var(--surface-3);
   border-radius: 99px;
-  transition: width 220ms ease;
 }
+.bar-seg.on { background: var(--acc); }
+.bar-seg.next { background: var(--border-2); }
 
 .progress-sub {
   font-size: 11.5px;
   color: var(--fg-3);
   letter-spacing: -0.003em;
+  min-height: 16px;
 }
 
 /* ---------- Sections ---------- */
@@ -371,23 +375,30 @@ button, input, textarea {
 .due-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .due-row {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 9px 12px;
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: border-color 100ms ease, background 100ms ease;
+  padding: 9px 8px;
+  margin: 0 -8px;
+  border-radius: var(--r-sm);
+  border-bottom: 1px solid var(--border);
+  transition: background 100ms ease;
 }
-.due-row:hover {
-  background: var(--surface-2);
-  border-color: var(--border-2);
+.due-row:last-child { border-bottom-color: transparent; }
+.due-row:hover { background: var(--surface); }
+
+.due-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--fg-4);
 }
+.due-dot.easy   { background: var(--easy); }
+.due-dot.medium { background: var(--medium); }
+.due-dot.hard   { background: var(--hard); }
 
 .due-row a {
   color: var(--fg);
@@ -413,12 +424,25 @@ button, input, textarea {
 .due-empty {
   font-size: 12px;
   color: var(--fg-3);
-  padding: 8px 12px;
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: var(--r);
-  text-align: center;
+  padding: 6px 0;
+  letter-spacing: -0.003em;
 }
+
+.due-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-size: 11.5px;
+  color: var(--fg-3);
+  letter-spacing: -0.003em;
+  transition: color 100ms ease;
+}
+.due-more:hover { color: var(--fg); }
 
 /* ---------- Manual entry ---------- */
 
@@ -450,7 +474,7 @@ button, input, textarea {
   border-color: var(--border-2);
   background: var(--surface-2);
 }
-.manual input#manual-query::placeholder { color: var(--fg-3); }
+.manual input#manual-query::placeholder { color: var(--fg-2); }
 
 .manual-results {
   margin-top: 6px;
@@ -462,9 +486,15 @@ button, input, textarea {
 }
 .manual-results:empty { display: none; }
 .manual-results .item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
   padding: 8px 12px;
   cursor: pointer;
   font-size: 12px;
+  color: var(--fg);
   border-bottom: 1px solid var(--border);
   transition: background 80ms ease;
 }
@@ -480,6 +510,12 @@ button, input, textarea {
   font-weight: 500;
   color: var(--fg-2);
   margin-right: 4px;
+}
+.manual-results .no-match {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--fg-3);
+  letter-spacing: -0.003em;
 }
 
 .picked {
@@ -558,7 +594,7 @@ button, input, textarea {
   border-color: var(--border-2);
   background: var(--surface-2);
 }
-#manual-notes::placeholder { color: var(--fg-3); }
+#manual-notes::placeholder { color: var(--fg-2); }
 
 .toggles { gap: 14px; }
 .toggle {
@@ -576,6 +612,14 @@ button, input, textarea {
 }
 
 .actions { justify-content: flex-end; }
+
+.form-err {
+  font-size: 11.5px;
+  color: var(--hard);
+  min-height: 15px;
+  margin-top: 8px;
+  letter-spacing: -0.003em;
+}
 
 .btn {
   background: transparent;
@@ -639,6 +683,93 @@ button, input, textarea {
 }
 .foot-link:hover { color: var(--fg); }
 .foot-link svg { flex-shrink: 0; color: currentColor; }
+
+/* ---------- Dialog (lib/dialog.js, per design.md §5.16) ---------- */
+
+.dlg-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-backdrop);
+  padding: 16px;
+}
+
+.dlg {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 12px;
+  padding: 20px;
+  width: min(400px, 100%);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  animation: dlg-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes dlg-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dlg { animation: none; }
+}
+
+.dlg-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.dlg-mark {
+  width: 32px; height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  color: var(--fg-2);
+}
+.dlg-mark.danger {
+  background: rgba(242, 111, 111, 0.10);
+  border-color: rgba(242, 111, 111, 0.25);
+  color: var(--hard);
+}
+
+.dlg-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--fg);
+}
+
+.dlg-body {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--fg-2);
+  letter-spacing: -0.003em;
+  overflow-wrap: anywhere;
+}
+
+.dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn.primary.danger {
+  background: var(--hard);
+  border-color: var(--hard);
+  color: var(--bg);
+}
+.btn.primary.danger:hover {
+  background: #FF8989;
+  border-color: #FF8989;
+}
 
 /* ---------- Scrollbars ---------- */
 
