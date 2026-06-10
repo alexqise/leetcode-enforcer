@@ -1,0 +1,120 @@
+/* =========================================================
+   Dusk-signal design tokens — single source of truth.
+   Mirrors design.md §2. Every surface imports this file.
+   ========================================================= */
+
+@import "tailwindcss";
+
+@import "@fontsource-variable/figtree";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+
+@theme {
+  /* Wipe Tailwind's default palette — dusk-signal tokens only. */
+  --color-*: initial;
+
+  --color-bg: #161216;
+  --color-surface: #1d181d;
+  --color-surface-2: #251f25;
+  --color-surface-3: #2f272e;
+
+  --color-border: #2b242b;
+  --color-border-2: #3b323a;
+
+  --color-fg: #f0edea;
+  --color-fg-2: #ada6a6;
+  --color-fg-3: #8a8386;
+  --color-fg-4: #3e3840;
+
+  --color-primary: #ff6f3c;
+  --color-primary-dim: rgba(255, 111, 60, 0.12);
+  --color-secondary: #97a3ff;
+  --color-secondary-dim: rgba(151, 163, 255, 0.12);
+
+  --color-easy: #57c690;
+  --color-medium: #e2a95b;
+  --color-hard: #ef6f6c;
+
+  --font-sans: "Figtree Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  --animate-skeleton: skeleton-pulse 1.6s ease-in-out infinite;
+  --animate-modal-in: modal-in 160ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  @keyframes skeleton-pulse {
+    0%,
+    100% {
+      background-color: var(--color-surface-2);
+    }
+    50% {
+      background-color: var(--color-surface-3);
+    }
+  }
+
+  @keyframes modal-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  /* [hidden] trap guard — display utilities must never beat the attribute. */
+  [hidden] {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-primary-dim);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-3);
+    border: 3px solid var(--color-bg);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border-2);
+  }
+}
