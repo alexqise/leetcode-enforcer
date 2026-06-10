@@ -25,20 +25,15 @@ export function BrandIcon({ size = 16, className }: IconProps) {
 }
 
 export function FlameIcon({ size = 11, className }: IconProps) {
+  // Lucide "flame" — clean single-stroke silhouette
   return (
-    <svg viewBox="0 0 16 16" width={size} height={size} className={className} aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={size} height={size} className={className} aria-hidden="true">
       <path
-        d="M8 1.5s2.5 2 2.5 5c0 1.5-1.1 2.5-2.5 2.5S5.5 8 5.5 6.5C5.5 5.5 6 5 6 5s-.5 1.5.5 2c0-1 0-2 1.5-3.5 0 1 .5 1.5 1 2 .5-1 .5-2-1-4z"
+        d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
         fill="none"
         stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M4 11c0 2.5 2 3.5 4 3.5s4-1 4-3.5c0-1-.5-2-1.5-2.5.5 1 0 2-1 2.5.5-1 0-2-1.5-2-1.5 0-2 1-2 2 0 .8.5 1 .5 1S5 11.5 5 11c0-.5.5-1 .5-1S4 10.5 4 11z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.3"
+        strokeWidth="2"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
