@@ -110,7 +110,7 @@ function StepProgress({ current }: { current: 1 | 2 | 3 }) {
               }`}
             >
               <span
-                className={`flex h-5 w-5 items-center justify-center rounded-full border font-mono text-[10.5px] ${
+                className={`flex h-5 w-5 items-center justify-center rounded-full border  text-[10.5px] ${
                   state === 'done'
                     ? 'border-primary bg-primary-dim text-primary'
                     : state === 'current'
@@ -276,7 +276,7 @@ function StepQuota({
           aria-label="Problems per day"
           className="w-64 accent-primary"
         />
-        <div className="font-mono text-[15px] text-fg">
+        <div className="text-[15px] text-fg">
           <span className="text-[28px] font-medium">{quota}</span>
           <span className="text-fg-3"> / day</span>
         </div>
@@ -480,9 +480,8 @@ function StepDone() {
         </h2>
         <p className="m-0 mb-4 max-w-[52ch] text-xs leading-[1.55] tracking-[-0.003em] text-fg-3">
           Push every accepted submission to a private repo as a single commit. Create a fine-grained
-          PAT with <code className="font-mono text-fg-2">Contents</code> and{' '}
-          <code className="font-mono text-fg-2">Administration</code> write access, then paste it
-          below.{' '}
+          PAT with <code className="text-fg-2">Contents</code> and{' '}
+          <code className="text-fg-2">Administration</code> write access, then paste it below.{' '}
           <a
             href="https://github.com/settings/tokens?type=beta"
             target="_blank"
@@ -498,7 +497,7 @@ function StepDone() {
             value={ghToken}
             placeholder="github_pat_… or ghp_…"
             onChange={(e) => setGhToken(e.target.value)}
-            className="rounded-md border border-border bg-surface px-3 py-2 font-mono text-[12.5px] tracking-normal text-fg transition-colors duration-100 placeholder:text-fg-3 focus:border-border-2 focus:bg-surface-2 focus:outline-none"
+            className="rounded-md border border-border bg-surface px-3 py-2 text-[12.5px]  text-fg transition-colors duration-100 placeholder:text-fg-3 focus:border-border-2 focus:bg-surface-2 focus:outline-none"
           />
           <div className="flex gap-2">
             <input

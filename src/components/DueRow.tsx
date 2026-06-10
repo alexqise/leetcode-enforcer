@@ -21,7 +21,7 @@ export function DueRow({ problem: p, target = '_top' }: DueRowProps) {
       >
         {title}
       </a>
-      <span className="shrink-0 font-mono text-[11px] text-secondary">
+      <span className="shrink-0 text-[11px] text-secondary">
         <span className={`font-medium ${diffTextClass(p.difficulty)}`}>{p.difficulty}</span>
         {` · ${p.srsIntervalDays}d`}
       </span>

@@ -31,7 +31,7 @@ type Dlg =
 const inputCls =
   'cursor-text rounded-none border-0 border-b border-border bg-surface/50 px-2 py-1.5 text-[13px] text-fg transition-colors duration-100 placeholder:text-fg-3 focus:border-fg-3 focus:outline-none'
 const inputSm = `${inputCls} w-12 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`
-const inputMono = `${inputCls} font-mono tracking-normal`
+const inputMono = `${inputCls}  `
 
 export function App() {
   const [draft, setDraft] = useState<Settings | null>(null)
@@ -150,7 +150,7 @@ export function App() {
                 max={5}
                 className="w-44"
               />
-              <span className="font-mono text-[13px] text-fg">
+              <span className="text-[13px] text-fg">
                 {draft.dailyQuota} <span className="text-fg-3">/ day</span>
               </span>
             </div>
@@ -780,7 +780,7 @@ function GithubSection({
               ) : (
                 <Row label="Device code" hint="Enter on the GitHub page that opens.">
                   <div className="flex flex-col gap-3">
-                    <div className="font-mono text-[24px] font-medium tracking-[0.14em] text-fg">
+                    <div className="text-[24px] font-medium tracking-[0.14em] text-fg">
                       {pending.userCode}
                     </div>
                     <div className="flex items-center gap-2">
@@ -851,10 +851,9 @@ function GithubSection({
                 </a>
               </div>
               <p className="m-0 mt-1 max-w-[58ch] text-[11.5px] leading-[1.55] tracking-[-0.003em] text-fg-4">
-                Required scope:{' '}
-                <code className="font-mono text-fg-3">Contents: Read and write</code> ·{' '}
-                <code className="font-mono text-fg-3">Administration: Read and write</code> (to
-                create the repo).
+                Required scope: <code className="text-fg-3">Contents: Read and write</code> ·{' '}
+                <code className="text-fg-3">Administration: Read and write</code> (to create the
+                repo).
               </p>
             </>
           )}

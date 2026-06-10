@@ -117,7 +117,7 @@ export function TableView({ rows, focusSearch }: { rows: ViewRow[]; focusSearch:
     <div className="flex min-h-0 flex-1 flex-col">
       {/* table controls */}
       <div className="flex items-center gap-3 border-b border-border px-6 py-2.5">
-        <span className="rounded-full bg-surface-2 px-2.5 py-1 font-mono text-[10.5px] text-fg-2">
+        <span className="rounded-full bg-surface-2 px-2.5 py-1 text-[10.5px] text-fg-2">
           {filtered.length} / {rows.length}
         </span>
         <div className="relative max-w-[340px] flex-1">
@@ -137,7 +137,7 @@ export function TableView({ rows, focusSearch }: { rows: ViewRow[]; focusSearch:
             }}
             className="w-full rounded-md border border-border bg-surface py-1.5 pr-12 pl-8 text-[12.5px] text-fg transition-colors duration-100 placeholder:text-fg-3 focus:border-border-2 focus:bg-surface-2 focus:outline-none"
           />
-          <kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-fg-3">
+          <kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-fg-3">
             ⌘K
           </kbd>
         </div>
@@ -153,7 +153,7 @@ export function TableView({ rows, focusSearch }: { rows: ViewRow[]; focusSearch:
           >
             Filter
             {filterCount > 0 && (
-              <span className="rounded-full bg-primary-dim px-1.5 font-mono text-[10px] text-primary">
+              <span className="rounded-full bg-primary-dim px-1.5 text-[10px] text-primary">
                 {filterCount}
               </span>
             )}
@@ -200,7 +200,7 @@ export function TableView({ rows, focusSearch }: { rows: ViewRow[]; focusSearch:
                   {c.label}
                   {/* reserved-space sort indicator — no layout shift on sort */}
                   {c.key && (
-                    <span className="inline-block w-3 text-center font-mono text-[10px] text-primary">
+                    <span className="inline-block w-3 text-center text-[10px] text-primary">
                       {sort.key === c.key ? (sort.dir === 'asc' ? '↑' : '↓') : ''}
                     </span>
                   )}
@@ -232,7 +232,7 @@ export function TableView({ rows, focusSearch }: { rows: ViewRow[]; focusSearch:
       </div>
 
       {/* status bar */}
-      <footer className="flex items-center justify-between border-t border-border px-6 py-2 font-mono text-[10.5px] text-fg-3">
+      <footer className="flex items-center justify-between border-t border-border px-6 py-2 text-[10.5px] text-fg-3">
         <div className="flex items-center gap-4">
           <span>
             <strong className="font-medium text-secondary">{due}</strong> due
@@ -348,7 +348,7 @@ function Chip({
       }`}
     >
       {label}
-      <span className={`font-mono text-[10px] ${on ? 'text-primary' : 'text-fg-4'}`}>{count}</span>
+      <span className={` text-[10px] ${on ? 'text-primary' : 'text-fg-4'}`}>{count}</span>
     </button>
   )
 }
@@ -374,7 +374,7 @@ function Row({ row: r, today, density }: { row: ViewRow; today: string; density:
 
   return (
     <tr className="transition-colors duration-75 hover:bg-surface">
-      <td className={`${cell} font-mono text-[11.5px] text-fg-3`}>{r.number ?? '·'}</td>
+      <td className={`${cell}  text-[11.5px] text-fg-3`}>{r.number ?? '·'}</td>
       <td className={`${cell} max-w-[320px]`}>
         <a
           href={r.url}
@@ -388,6 +388,7 @@ function Row({ row: r, today, density }: { row: ViewRow; today: string; density:
         </a>
       </td>
       <td className={cell}>
+        {' '}
         {r.difficulty !== 'Unknown' ? (
           <span className={`font-medium ${diffTextClass(r.difficulty)}`}>{r.difficulty}</span>
         ) : (
@@ -420,6 +421,7 @@ function Row({ row: r, today, density }: { row: ViewRow; today: string; density:
         )}
       </td>
       <td className={cell}>
+        {' '}
         <span
           className={`flex items-center gap-1.5 text-[11.5px] font-medium ${
             r.status === 'Mastered'
@@ -429,13 +431,14 @@ function Row({ row: r, today, density }: { row: ViewRow; today: string; density:
                 : 'text-fg-3'
           }`}
         >
-          <span aria-hidden="true" className="font-mono text-[9px]">
+          <span aria-hidden="true" className="text-[9px]">
             {r.status === 'Mastered' ? '★' : r.status === 'Active' ? '●' : '◌'}
           </span>
           {r.status}
         </span>
       </td>
       <td className={cell}>
+        {' '}
         {r.latestConfidence == null ? (
           muted
         ) : (
@@ -471,16 +474,14 @@ function Row({ row: r, today, density }: { row: ViewRow; today: string; density:
           </button>
         )}
       </td>
-      <td className={`${cell} whitespace-nowrap font-mono text-[11px] text-fg-3`}>
+      <td className={`${cell} whitespace-nowrap  text-[11px] text-fg-3`}>
         {r.firstSolved ?? muted}
       </td>
-      <td className={`${cell} whitespace-nowrap font-mono text-[11px] text-fg-3`}>
+      <td className={`${cell} whitespace-nowrap  text-[11px] text-fg-3`}>
         {r.lastReviewed ?? muted}
       </td>
-      <td className={`${cell} whitespace-nowrap font-mono text-[11px] ${dueCls}`}>
-        {r.nextDue ?? muted}
-      </td>
-      <td className={`${cell} font-mono text-[11px] text-fg-3`}>
+      <td className={`${cell} whitespace-nowrap  text-[11px] ${dueCls}`}>{r.nextDue ?? muted}</td>
+      <td className={`${cell}  text-[11px] text-fg-3`}>
         {r.srsIntervalDays ? `${r.srsIntervalDays}d` : muted}
       </td>
     </tr>

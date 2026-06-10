@@ -17,7 +17,7 @@ export function StreakChip({ days }: StreakChipProps) {
     >
       <FlameIcon className="shrink-0 text-medium" />
       <span>
-        <span className="font-mono font-medium text-[#FFFFFF]">{days}</span>
+        <span className="font-medium text-[#FFFFFF]">{days}</span>
         -day streak
       </span>
     </div>

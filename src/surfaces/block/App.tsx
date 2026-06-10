@@ -101,10 +101,7 @@ function Hero({ settings, state }: { settings?: Settings; state?: State }) {
         </h1>
         {from && (
           <p className="m-0 text-xs tracking-[-0.003em] text-fg-3">
-            Blocked from{' '}
-            <code className="font-mono text-[11.5px] font-medium tracking-normal text-fg-2">
-              {from}
-            </code>
+            Blocked from <code className="text-[11.5px] font-medium text-fg-2">{from}</code>
           </p>
         )}
       </div>
@@ -112,10 +109,10 @@ function Hero({ settings, state }: { settings?: Settings; state?: State }) {
       <SegmentedBar total={quota} filled={solved} label="Daily quota" className="mb-2.5" />
 
       <div className="flex items-baseline justify-between gap-4">
-        <span className="font-mono text-[11.5px] text-fg-3">
+        <span className="text-[11.5px] text-fg-3">
           {loaded ? `${solved} of ${settings.dailyQuota} solved` : ''}
         </span>
-        <span className="font-mono text-[11.5px] text-fg-3">
+        <span className="text-[11.5px] text-fg-3">
           {loaded ? `resets ${String(settings.quotaResetHour ?? 3).padStart(2, '0')}:00` : ''}
         </span>
       </div>
@@ -352,7 +349,7 @@ function Emergency({ settings, state }: { settings: Settings; state: State }) {
           Overrides are limited and logged.
         </p>
         <div className="mb-3">
-          <code className="inline-block rounded-md border border-border bg-bg px-3 py-2 font-mono text-[12.5px] tracking-normal text-fg">
+          <code className="inline-block rounded-md border border-border bg-bg px-3 py-2 text-[12.5px]  text-fg">
             {phrase}
           </code>
         </div>
@@ -368,7 +365,7 @@ function Emergency({ settings, state }: { settings: Settings; state: State }) {
           spellCheck={false}
           placeholder="Type the exact phrase"
           aria-label="Override phrase"
-          className="mb-4 w-full rounded-md border border-border bg-bg px-3 py-[9px] font-mono text-[13px] tracking-normal text-fg transition-colors duration-100 placeholder:text-fg-2 focus:border-border-2 focus:bg-surface-2 focus:outline-none"
+          className="mb-4 w-full rounded-md border border-border bg-bg px-3 py-[9px] text-[13px]  text-fg transition-colors duration-100 placeholder:text-fg-2 focus:border-border-2 focus:bg-surface-2 focus:outline-none"
         />
       </Dialog>
     </footer>

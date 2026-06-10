@@ -6,8 +6,6 @@
 @import "tailwindcss";
 
 @import "@fontsource-variable/figtree";
-@import "@fontsource/jetbrains-mono/400.css";
-@import "@fontsource/jetbrains-mono/500.css";
 
 @theme {
   /* Wipe Tailwind's default palette — dusk-signal tokens only. */
@@ -36,7 +34,9 @@
   --color-hard: #ef6f6c;
 
   --font-sans: "Figtree Variable", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Mono retired (2026-06-10, user-directed) — one face everywhere. Any
+     stray font-mono utility resolves to Figtree rather than a system mono. */
+  --font-mono: "Figtree Variable", system-ui, -apple-system, sans-serif;
 
   --radius-sm: 4px;
   --radius-md: 6px;

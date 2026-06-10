@@ -35,7 +35,7 @@ export function QueueView({ rows, state, settings, onOpenTable }: QueueViewProps
       <section aria-label="Today" className="mb-12">
         <div className="mb-5 flex items-baseline justify-between gap-4">
           <h1 className="m-0 flex items-baseline gap-3">
-            <span className="font-mono text-[40px] font-medium leading-none tracking-[-0.02em] text-fg">
+            <span className="text-[40px] font-medium leading-none tracking-[-0.02em] text-fg">
               {due.length}
             </span>
             <span className="text-[15px] tracking-[-0.01em] text-fg-2">
@@ -44,12 +44,11 @@ export function QueueView({ rows, state, settings, onOpenTable }: QueueViewProps
           </h1>
           <span className="flex items-center gap-1.5 text-xs text-fg-2">
             <FlameIcon className="text-medium" />
-            <span className="font-mono font-medium text-fg">{state.streakDays || 0}</span>-day
-            streak
+            <span className="font-medium text-fg">{state.streakDays || 0}</span>-day streak
           </span>
         </div>
         <SegmentedBar total={quota} filled={solved} label="Daily quota" className="mb-2" />
-        <div className="font-mono text-[11.5px] text-fg-3">
+        <div className="text-[11.5px] text-fg-3">
           {solved} of {settings.dailyQuota} solved today
         </div>
       </section>
@@ -102,7 +101,7 @@ function Kpi({ label, value, accent }: { label: string; value: number; accent?: 
   return (
     <div>
       <div
-        className={`font-mono text-[24px] font-medium leading-none tracking-[-0.01em] ${
+        className={` text-[24px] font-medium leading-none tracking-[-0.01em] ${
           accent ? 'text-hard' : 'text-fg'
         }`}
       >
@@ -132,12 +131,12 @@ function DueQueueRow({ row: r, today }: { row: ViewRow; today: string }) {
         {r.title}
       </a>
       {overdueDays > 0 && (
-        <span className="shrink-0 rounded-full bg-[rgba(239,111,108,0.1)] px-2 py-0.5 font-mono text-[10.5px] text-hard">
+        <span className="shrink-0 rounded-full bg-[rgba(239,111,108,0.1)] px-2 py-0.5 text-[10.5px] text-hard">
           {overdueDays}d over
         </span>
       )}
-      <span className="shrink-0 font-mono text-[11px] text-fg-3">
-        <span className={diffTextClass(r.difficulty)}>{r.difficulty}</span>
+      <span className="shrink-0 text-[11px] text-fg-3">
+        <span className={diffTextClass(r.difficulty)}>{r.difficulty}</span>{' '}
         {` · ${r.srsIntervalDays}d`}
       </span>
     </div>
