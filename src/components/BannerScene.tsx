@@ -5,6 +5,8 @@ type Variant = 'dusk' | 'sunrise'
 interface BannerSceneProps {
   /** dusk = block page; sunrise = onboarding (design.md §5.15). */
   variant?: Variant
+  /** Wrapper sizing — override to stretch the scene (full-bleed, side panel). */
+  className?: string
   /** Topbar content overlaid on the scene (brand, streak chip). */
   children?: ReactNode
 }
@@ -51,14 +53,18 @@ const scenes: Record<Variant, ScenePalette> = {
  * xMaxYMax slice keeps it visible at any width), three ridges. Grain
  * sits behind the front ridge.
  */
-export function BannerScene({ variant = 'dusk', children }: BannerSceneProps) {
+export function BannerScene({
+  variant = 'dusk',
+  className = 'h-[232px] max-sm:h-[176px]',
+  children,
+}: BannerSceneProps) {
   const s = scenes[variant]
   const skyId = `lce-sky-${variant}`
   const glowId = `lce-glow-${variant}`
   const grainId = `lce-grain-${variant}`
 
   return (
-    <div className="relative h-[232px] max-sm:h-[176px]" style={{ background: s.skyStops[0] }}>
+    <div className={`relative ${className}`} style={{ background: s.skyStops[0] }}>
       <svg
         className="absolute inset-0 block h-full w-full"
         viewBox="0 0 1440 232"
