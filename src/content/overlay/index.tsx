@@ -391,7 +391,16 @@ async function setupBanner() {
   )
 }
 
+declare global {
+  interface Window {
+    __lceOverlayLoaded?: boolean
+  }
+}
+
 function init() {
+  // Guard against double-injection (declarative + onInstalled reinject).
+  if (window.__lceOverlayLoaded) return
+  window.__lceOverlayLoaded = true
   console.log('[LCE/overlay] loaded in ISOLATED world on', location.href)
 
   window.addEventListener('message', (evt: MessageEvent) => {

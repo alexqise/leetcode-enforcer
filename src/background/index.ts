@@ -98,9 +98,46 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
   await scheduleDailyReset()
   await syncBlockRules()
+  await reinjectContentScripts()
   // Covers extension reload/update: restore from the cloud if signed in.
   if (await getSession()) await pullFromSupabase()
 })
+
+/**
+ * Chrome destroys ISOLATED-world content scripts on extension
+ * reload/update and never re-injects into already-open tabs — solve
+ * detection silently dies in any leetcode.com tab opened before the
+ * update (the MAIN-world patch survives, so it posts to a dead room).
+ * Re-inject the manifest's content scripts into existing LC tabs; the
+ * scripts guard against double-injection.
+ */
+async function reinjectContentScripts(): Promise<void> {
+  try {
+    const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/*' })
+    if (tabs.length === 0) return
+    const decls = chrome.runtime.getManifest().content_scripts ?? []
+    for (const tab of tabs) {
+      if (tab.id == null) continue
+      for (const cs of decls) {
+        if (!cs.js?.length) continue
+        try {
+          // @types/chrome's manifest type predates the `world` field
+          const world = (cs as { world?: string }).world === 'MAIN' ? 'MAIN' : 'ISOLATED'
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: cs.js,
+            world,
+          })
+        } catch (e) {
+          console.warn('[LCE] content-script reinject failed for tab', tab.id, e)
+        }
+      }
+    }
+    console.log('[LCE] re-injected content scripts into', tabs.length, 'leetcode tab(s)')
+  } catch (e) {
+    console.warn('[LCE] reinjectContentScripts failed', e)
+  }
+}
 
 chrome.runtime.onStartup.addListener(async () => {
   await scheduleDailyReset()
