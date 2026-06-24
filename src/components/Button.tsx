@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from 'react'
 
-type Variant = 'outline' | 'ghost' | 'primary' | 'danger'
+type Variant = 'outline' | 'ghost' | 'primary' | 'danger' | 'raised' | 'raised-danger'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
@@ -18,6 +18,10 @@ const variants: Record<Variant, string> = {
   primary: 'bg-fg font-semibold text-bg hover:enabled:bg-[#FFFCF7]',
   danger:
     'bg-[rgba(239,111,108,0.14)] font-medium text-hard hover:enabled:bg-[rgba(239,111,108,0.24)]',
+  raised:
+    'rounded-[10px] border-0 bg-gradient-to-b from-surface-2 to-surface py-3.5 font-semibold text-fg-2 shadow-[inset_0_1px_0_0_rgba(240,237,234,0.045)] hover:enabled:from-surface-3 hover:enabled:to-surface-2 hover:enabled:text-fg active:enabled:shadow-[inset_0_2px_4px_rgba(0,0,0,0.28)]',
+  'raised-danger':
+    'rounded-[10px] border-0 bg-gradient-to-b from-[color-mix(in_srgb,var(--color-surface-2)_88%,var(--color-hard)_12%)] to-[color-mix(in_srgb,var(--color-surface)_92%,var(--color-hard)_8%)] py-3.5 font-semibold text-hard shadow-[inset_0_1px_0_0_rgba(239,111,108,0.12)] hover:enabled:from-[color-mix(in_srgb,var(--color-surface-3)_85%,var(--color-hard)_15%)] hover:enabled:to-[color-mix(in_srgb,var(--color-surface-2)_88%,var(--color-hard)_12%)] active:enabled:shadow-[inset_0_2px_4px_rgba(0,0,0,0.28)]',
 }
 
 export function Button({
