@@ -222,11 +222,103 @@ Click handler uses **document-level event delegation** (`document.addEventListen
 - Focus via `⌘K` / `Ctrl+K`, clear and blur via `Esc`
 
 ### 5.9 — Buttons
-- **Default ghost button (`.btn`):** transparent bg, `--border` border, `--fg-2` text, `--fg-3` icon. Hover: `--surface` bg, `--fg` text, `--border-2` border.
-- **Active button:** `--surface-2` bg, `--fg` text, `--border-2` border.
-- **Badge inside button:** `--acc` bg, `--bg` text (black on lime), 10px font, 700 weight, 99px radius.
-- Height 34px (was 30 in initial design — bumped for breathability).
-- Padding 14px horizontal, 8px gap to label.
+
+Canonical implementation: `src/components/Button.tsx`. Six variants — `outline`, `ghost`, `primary`, `danger`, `raised`, `raised-danger`.
+
+#### Soft-fill variants (`outline` · `ghost` · `primary` · `danger`)
+
+Borderless soft fills (2026-06-10). No outlined chips on resting buttons; accents never sit on default button faces (principle 1).
+
+| Variant | Rest | Hover |
+|---|---|---|
+| `outline` | `--surface-2` bg, `--fg-2` text | `--surface-3` bg, `--fg` text |
+| `ghost` | transparent, `--fg-2` text | `--surface-2` bg, `--fg` text |
+| `primary` | inverted warm-white (`--fg` bg, `--bg` text, semibold) | `#FFFCF7` bg |
+| `danger` | soft red tint `rgba(239,111,108,0.14)`, `--hard` text | stronger red tint |
+
+Shared base: `inline-flex`, `rounded-lg` (8px), `px-3.5` (14px) horizontal, `py-[7px]` (~7px) vertical, 13px medium weight, `-0.003em` tracking, 100ms color transition, 8px gap when an icon precedes the label. Use for dialog actions, inline secondary controls, compact/toolbar contexts, and destructive confirms.
+
+#### Raised button (`raised`) — settings primary CTA
+
+A subtle skeuomorphic push button for **page-level primary actions** on the open settings document (and other full-page surfaces when they migrate). Reference: options page — Add, Import history, Authorize/Connect GitHub, Sign in with Google, full-width section CTAs. **Not** for ghost secondary actions (Test, Disconnect, Sign out) or dialog buttons. Page-level destructive actions use `raised-danger` (below); compact/dialog destructive keeps soft-fill `danger`.
+
+**Shape & spacing**
+- Corner radius: **10px** (`rounded-[10px]`) — slightly rounder than soft-fill buttons (8px), not fully pill.
+- Padding: **14px vertical** (`py-3.5`), **14px horizontal** (`px-3.5` from shared base).
+- Width: **content-sized** by default; add `className="w-full"` for standalone section CTAs that should span the content column. Inline pairings (e.g. blocklist input + Add) stay auto-width with `shrink-0`.
+- Height is padding-driven (~42px with label) — taller than soft-fill buttons for a substantial click target.
+
+**Typography**
+- 13px Figtree, **semibold** (600), `-0.003em` tracking.
+- Rest: `--fg-2`. Hover: `--fg`. Optional leading SVG icon at 14px with 8px gap (same as base).
+
+**Surface & lighting**
+
+Depth comes from a **low-contrast vertical gradient** and a **single inset top highlight** — never from CSS borders or outer drop shadows.
+
+```
+Rest gradient:   --surface-2  →  --surface     (#251F25 → #1D181D)
+Hover gradient:  --surface-3  →  --surface-2   (#2F272E → #251F25)
+```
+
+The gradient step is intentionally small (one surface tier, not `surface-3 → bg`) so the face reads soft, not glossy.
+
+**Top rim light (rest / hover):** one inset hairline simulating light from above —
+`box-shadow: inset 0 1px 0 0 rgba(240, 237, 234, 0.045)` (4.5% of `--fg`).
+
+**Pressed (active):** swap rim for an inset depth shadow —
+`box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.28)`. No outer shadow on active either.
+
+**Explicit bans on raised buttons:**
+- **No CSS `border`** — a visible stroke plus inset highlight reads as a double edge.
+- **No bottom inset edge** — `inset 0 -1px …` looks like a sub-border.
+- **No outer `box-shadow`** — blur always traces `border-radius`; on wide rounded buttons it produces a visible pill-shaped silhouette behind the control. Negative spread only shifts the ghost; it does not remove it. Depth is gradient + top inset only.
+
+**Interaction**
+- 100ms `transition-colors` on gradient and text (inherits base). No `translateY` lift on hover or active (§8).
+- Focus: global 2px `--primary` `:focus-visible` ring from `tokens.css`.
+- Loading: `disabled` + inline `Spinner` in the label slot; never `…` ellipsis.
+
+**CSS recipe (reference)**
+
+```css
+.btn-raised {
+  border: 0;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.003em;
+  color: var(--fg-2);
+  background: linear-gradient(to bottom, var(--surface-2), var(--surface));
+  box-shadow: inset 0 1px 0 0 rgba(240, 237, 234, 0.045);
+  transition: color 100ms ease-out, background 100ms ease-out;
+}
+.btn-raised:hover:enabled {
+  color: var(--fg);
+  background: linear-gradient(to bottom, var(--surface-3), var(--surface-2));
+}
+.btn-raised:active:enabled {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.28);
+}
+```
+
+#### Raised danger (`raised-danger`) — settings destructive CTA
+
+Same shape, spacing, lighting rules, and interaction as `raised` (§5.9 above). Reference: options **Reset all data**. Muted red tint in the surface hierarchy — not a flat `--hard` fill.
+
+```
+Rest gradient:   color-mix(surface-2 88%, hard 12%)  →  color-mix(surface 92%, hard 8%)
+Hover gradient:  color-mix(surface-3 85%, hard 15%)  →  color-mix(surface-2 88%, hard 12%)
+```
+
+- Text: `--hard` at rest and hover.
+- Top rim light: `inset 0 1px 0 0 rgba(239, 111, 108, 0.12)` (12% of `--hard`).
+- Active: same inset press shadow as `raised`. Same bans — no border, no outer drop shadow.
+
+#### Legacy `.btn` (viewer1 / pre-v2 CSS surfaces)
+
+Pre-v2 surfaces still reference ghost `.btn` chips: transparent bg, `--border` border, `--fg-2` text; hover `--surface` bg. Height 34px, 14px horizontal padding. Migrate to the React `Button` variants above when those surfaces are touched.
 
 ### 5.10 — Auth gate (sign-in screen)
 - Full-screen `position: fixed; inset: 0` with `--bg` background
@@ -278,7 +370,7 @@ For the override modal and other gated confirmations.
 - Card: `--surface` bg, 1px `--border-2`, 12px radius, padding 24px, max-width 440px, shadow `0 24px 64px rgba(0,0,0,0.5)`
 - **Head row:** small mark icon (32×32, tinted by intent — `--medium` for warning, `--hard` for destructive) + title (16px, weight 600, letter-spacing -0.015em)
 - **Body:** 12.5px, `--fg-2`, line-height 1.55
-- For phrase-confirm modals: render the phrase in a `<code>` block at 12.5px in mono on `--bg` bg, followed by a mono-font input for the user to retype
+- For phrase-confirm modals: render the phrase in a `<code>` block at 12.5px in mono on `--bg` bg, followed by a mono-font input for the user to retype. **The phrase must be typed by hand** — the `<code>` is `select-none` (and cancels `copy`) and the input cancels `paste`/`drop`. Copy-paste would collapse the deliberate friction these modals exist to impose.
 - **Actions row:** right-aligned ghost + primary button pair. Primary button uses `--hard` bg with `--bg` text when the action is destructive.
 - Error text: 11.5px, `--hard`, `min-height: 16px` so the layout doesn't shift when an error appears.
 
@@ -361,6 +453,7 @@ Otherwise CSS `display` will override the HTML hidden attribute (this has bitten
 
 ### Banned decorative patterns
 These read as template/AI styling and are never intentional here:
+- **Outer box-shadow on raised buttons** — always traces `border-radius` and creates a pill silhouette on wide CTAs; use inset top highlight + surface gradient only (§5.9).
 - **Gradient text** — `background-clip: text` over a gradient. Use a solid color; emphasis comes from weight and size.
 - **Accent side-stripes/rails** — `border-left`/`border-right` (or a pseudo-element) wider than 1px as a colored accent on cards, rows, or callouts, including slide-in-on-hover rails. Use full borders, bg tints, or nothing.
 - **Decorative background glows** — fixed radial-gradient haze/ellipses behind content. Atmosphere is carried by the surface hierarchy, not painted on.
@@ -408,3 +501,6 @@ Then update this design.md to call out the exception under the relevant section.
 - **2026-06-09 (v2 rebuild)** — All surfaces rebuilt in `v2/` as a Vite + React + TypeScript project per `v2/SPEC.md`; v2 is born on dusk-signal with no legacy palette anywhere. Component patterns migrated from prose+CSS recipes to actual shared React components in `v2/src/components/`: `BannerScene` (banner cover §5.15, now with a parameterized `variant` — `dusk` for block, `sunrise` for onboarding: same geometry, dawn gradient, golden sun, faded stars), `SegmentedBar` (§5.13), `DueRow` (§5.14), `SectionLabel`, `StreakChip`, `Dialog` (§5.16 — replaces `lib/dialog.js`), `Skeleton`, `Button`, `Spinner`, and the full SVG icon set in `icons.tsx` (§6). Typography: UI face is now **Figtree** (variable, self-hosted via @fontsource — extension pages must not load fonts from the network) with JetBrains Mono unchanged; Tailwind v4 carries the tokens via `@theme` in `v2/src/styles/tokens.css`, which wipes Tailwind's default palette so only dusk-signal colors exist. The LC overlay (leetcode.com content script) renders in a closed Shadow DOM with handwritten dusk-signal CSS and the system font stack — Tailwind can't cross the shadow boundary and page-injected CSS can't resolve extension font assets. New v2 pattern: viewer is review-queue-first (queue dashboard landing + the Linear-style table as a second view, keeping reserved-space sort indicators, 3-state filter chips, expanding notes/topics, ⌘K). `viewer1/` remains the v1 reference until the v2 flip, then `v2/src/components/` is canonical.
 - **2026-06-10** — Settings rework sets the new form language (user-directed): open settings document (no cards; hairline-paced sections; §5.11's bordered card pattern is retired), label-column form grid with right-aligned controls, underline text fields (hairline bottom border + static faint `--surface` tint, square corners, I-beam cursor, no hover/focus bg shift), auto-save with a transient "Saved" status (no save bar), Base UI primitives for slider/switch/checkbox styled with tokens, borderless soft-fill buttons (outlined chips retired; primary = inverted warm-white per §5.10; danger = soft red tint), segmented control for mode switches, topbar brand reduced to wordmark-only (§5.6). Other surfaces adopt on their rework pass.
 - **2026-06-10 (later)** — JetBrains Mono retired entirely (user-directed): Figtree is the single face for everything including numerals, dates, intervals, and device codes; §3 rewritten, @fontsource/jetbrains-mono dropped. Popup layout rebuilt via a five-concept variant round: winner is the segmented quota ring (one arc per problem — the radial expression of §5.13's discrete-count rule) with the coach headline ("Solve N more to unlock your sites.") beside it, due list and log below.
+- **2026-06-21** — Phrase-confirm modals (§5.16) must force hand-typing (user-directed): the displayed phrase is `select-none` + `copy`-cancelled and the retype input rejects `paste`/`drop`, so the override can't be shortcut by copy-paste. Applied to the block override modal; the rule governs any future phrase-confirm gate.
+- **2026-06-11** — Viewer reworked to dusk-signal open document (user-directed): banner cover header (§5.15) like block/onboarding, review-queue landing removed — the sortable problem table is the only view. Table is borderless (no outer box, no per-row hairlines; §7), underline search, open topic tags, one structural footer rule for status counts. `viewer1/` legacy note in §2 still applies to the retired v1 folder only.
+- **2026-06-23** — New **raised button** variant (§5.9): skeuomorphic settings primary CTA — low-contrast `--surface-2 → --surface` gradient, 10px radius, inset top rim light only, no borders or outer drop shadows (pill silhouette ban added to §8). Options page primary actions migrated; soft-fill variants remain for dialogs and secondary controls. **`raised-danger`** added for page-level destructive CTAs (Reset all data).
