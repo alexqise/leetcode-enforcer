@@ -130,7 +130,12 @@ export function useOverride(status: StatusResponse | null): {
         Overrides are limited and logged.
       </p>
       <div className="mb-3">
-        <code className="inline-block rounded-md bg-bg px-3 py-2 text-[12.5px] text-fg">
+        {/* The phrase must be typed by hand — it's non-selectable and the input below
+            rejects paste/drop, so copy-paste can't shortcut the override's friction. */}
+        <code
+          className="inline-block select-none rounded-md bg-bg px-3 py-2 text-[12.5px] text-fg"
+          onCopy={(e) => e.preventDefault()}
+        >
           {phrase}
         </code>
       </div>
@@ -142,6 +147,8 @@ export function useOverride(status: StatusResponse | null): {
         onKeyDown={(e) => {
           if (e.key === 'Enter') confirm()
         }}
+        onPaste={(e) => e.preventDefault()}
+        onDrop={(e) => e.preventDefault()}
         autoComplete="off"
         spellCheck={false}
         placeholder="Type the exact phrase"
