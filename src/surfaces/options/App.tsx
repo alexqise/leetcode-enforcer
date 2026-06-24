@@ -274,7 +274,7 @@ export function App() {
         <Section title="Reset" sub="Wipe all local data. Your Supabase records are not deleted.">
           <div>
             <Button
-              variant="danger"
+              variant="raised-danger"
               onClick={() =>
                 setDlg({
                   kind: 'confirm',
@@ -501,7 +501,7 @@ function BlocklistEditor({
           aria-label="Add a site to the blocklist"
           className={`${inputCls} w-[280px]`}
         />
-        <Button variant="outline" onClick={add}>
+        <Button variant="raised" className="shrink-0" onClick={add}>
           Add
         </Button>
       </div>
@@ -773,7 +773,7 @@ function GithubSection({
               </Row>
               {!pending ? (
                 <div className="mt-2">
-                  <Button variant="primary" disabled={busy} onClick={startOauth}>
+                  <Button variant="raised" className="w-full" disabled={busy} onClick={startOauth}>
                     {busy ? 'Starting…' : 'Authorize via GitHub'}
                   </Button>
                 </div>
@@ -784,14 +784,12 @@ function GithubSection({
                       {pending.userCode}
                     </div>
                     <div className="flex items-center gap-2">
-                      <a
-                        href={pending.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center justify-center rounded-lg bg-fg px-3.5 py-[7px] text-[13px] font-semibold tracking-[-0.003em] text-bg no-underline transition-colors duration-100 hover:bg-[#FFFCF7]"
+                      <Button
+                        variant="raised"
+                        onClick={() => window.open(pending.url, '_blank', 'noopener,noreferrer')}
                       >
                         Open GitHub
-                      </a>
+                      </Button>
                       <Button variant="ghost" onClick={cancelOauth}>
                         Cancel
                       </Button>
@@ -838,7 +836,7 @@ function GithubSection({
                 />
               </Row>
               <div className="mt-2 flex items-center gap-3">
-                <Button variant="primary" disabled={busy} onClick={connectPat}>
+                <Button variant="raised" disabled={busy} onClick={connectPat}>
                   {busy ? 'Connecting…' : 'Connect GitHub'}
                 </Button>
                 <a
@@ -896,7 +894,11 @@ function HistorySection() {
       sub="Pull your accepted submissions. New entries are added as Mastered with no SRS impact."
     >
       <div className="flex items-center gap-3">
-        <Button variant="outline" disabled={busy || typeof login !== 'object'} onClick={runImport}>
+        <Button
+          variant="raised"
+          disabled={busy || typeof login !== 'object'}
+          onClick={runImport}
+        >
           {busy ? 'Importing…' : 'Import history'}
         </Button>
         <span aria-live="polite" className="text-[11.5px] text-fg-3">
@@ -1006,7 +1008,8 @@ function AccountSection({
       ) : (
         <div>
           <Button
-            variant="outline"
+            variant="raised"
+            className="w-full"
             disabled={busy}
             onClick={async () => {
               setBusy(true)
