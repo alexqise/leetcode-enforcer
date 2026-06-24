@@ -28,6 +28,8 @@ interface LastSubmit {
   const SUBMIT_URL_RE = /\/problems\/[^/]+\/submit\/?($|\?)/
   const CHECK_URL_RE = /\/submissions\/detail\/\d+\/check\//
   const GRAPHQL_RE = /\/graphql\/?$/
+  // Run-against-samples endpoints — never trigger the accepted flow on these.
+  const INTERPRET_URL_RE = /\/interpret/
 
   // ---- fetch patch ----
   const origFetch = window.fetch
@@ -156,6 +158,7 @@ interface LastSubmit {
 
   function maybeHandleAccepted(text: string, url: string) {
     if (!text) return
+    if (INTERPRET_URL_RE.test(url)) return
     try {
       const data = JSON.parse(text)
       const result = extractResult(data)
