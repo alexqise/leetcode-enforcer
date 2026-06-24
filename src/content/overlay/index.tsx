@@ -9,7 +9,7 @@
 
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import type { Difficulty, DueProblem, SolvePayload } from '../../engine/types'
+import type { Difficulty, SolvePayload } from '../../engine/types'
 import { isMsgError, send } from '../../messages'
 
 interface AcceptedPayload {
@@ -80,56 +80,88 @@ const SHADOW_CSS = `
     font-size: 13px;
     letter-spacing: -0.005em;
     -webkit-font-smoothing: antialiased;
+    color: #F0EDEA;
   }
   .backdrop {
     position: fixed; inset: 0;
-    background: rgba(8, 4, 10, 0.65);
-    backdrop-filter: blur(4px);
+    background: rgba(6, 3, 8, 0.72);
+    backdrop-filter: blur(6px);
     display: flex; align-items: center; justify-content: center;
     pointer-events: auto;
   }
   .modal {
-    background: #1D181D; color: #F0EDEA;
-    border: 1px solid #3B323A; border-radius: 12px;
-    width: min(440px, 92vw); padding: 24px;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    background: #1A151A;
+    border: 1px solid #2B242B;
+    border-radius: 10px;
+    width: min(400px, 92vw);
+    padding: 20px 22px 18px;
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.62);
   }
-  .kicker { font-size: 11.5px; font-weight: 500; color: #8A8386; margin-bottom: 6px; }
-  .kicker .accepted { color: #57C690; font-weight: 600; }
-  .name { font-size: 17px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 18px; overflow-wrap: anywhere; }
-  .label { font-size: 11.5px; font-weight: 500; color: #8A8386; margin-bottom: 6px; }
-  .segs { display: flex; gap: 6px; margin-bottom: 16px; border: 0; padding: 0; margin-top: 0; }
+
+  .kicker { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .accepted {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.01em;
+    color: #57C690;
+    background: rgba(87, 198, 144, 0.1);
+    border: 1px solid rgba(87, 198, 144, 0.18);
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+  .kicker-rest { font-size: 11.5px; color: #3D373D; }
+  .name {
+    font-size: 15px; font-weight: 600; letter-spacing: -0.015em;
+    line-height: 1.3; margin-bottom: 18px; overflow-wrap: anywhere;
+  }
+
+  .label {
+    font-size: 10.5px; font-weight: 500; letter-spacing: 0.05em;
+    text-transform: uppercase; color: #4A4248; margin-bottom: 7px;
+  }
+
+  .segs {
+    display: flex; gap: 2px; border: 0; margin: 0 0 16px;
+    background: #111011; border-radius: 7px; padding: 3px;
+  }
   .seg {
-    flex: 1; padding: 8px 0; border: 1px solid #2B242B; border-radius: 6px;
-    background: #1D181D; color: #ADA6A6; cursor: pointer;
-    font-size: 13px; font-weight: 500; font-family: inherit;
-    transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+    flex: 1; padding: 5px 0; border: none; border-radius: 5px;
+    background: transparent; color: #3D373D; cursor: pointer;
+    font-size: 11px; font-weight: 500; font-family: inherit; line-height: 1;
+    transition: background 80ms, color 80ms;
   }
-  .seg:hover { background: #251F25; color: #F0EDEA; }
-  .seg.active { border-color: #FF6F3C; background: rgba(255, 111, 60, 0.12); color: #FF6F3C; }
+  .seg:hover:not(.active) { background: #221C22; color: #8A8386; }
+  .seg.active { background: #FF6F3C; color: #1A0008; font-weight: 600; }
+
   textarea {
-    width: 100%; min-height: 72px; resize: vertical; padding: 9px 12px;
-    border: 1px solid #2B242B; border-radius: 6px;
-    background: #161216; color: #F0EDEA;
+    width: 100%; min-height: 64px; resize: vertical; padding: 9px 11px;
+    border: 1px solid #231D23; border-radius: 6px;
+    background: #111011; color: #F0EDEA;
     font-family: inherit; font-size: 13px; letter-spacing: inherit;
-    margin-bottom: 14px;
+    margin-bottom: 14px; display: block;
   }
-  textarea::placeholder { color: #8A8386; }
-  textarea:focus { outline: none; border-color: #3B323A; background: #251F25; }
-  .toggles { display: flex; gap: 16px; margin-bottom: 18px; }
-  .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #ADA6A6; cursor: pointer; }
-  .toggle input { width: 14px; height: 14px; accent-color: #FF6F3C; margin: 0; }
-  .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  textarea::placeholder { color: #3A343A; }
+  textarea:focus { outline: none; border-color: #3B323A; }
+
+  .toggles { display: flex; gap: 18px; margin-bottom: 18px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #6B6368; cursor: pointer;
+  }
+  .toggle input { width: 13px; height: 13px; accent-color: #FF6F3C; margin: 0; cursor: pointer; }
+
+  .sep { border: none; border-top: 1px solid #1F1A1F; margin: 0 0 16px; }
+
+  .actions { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
   .btn {
-    border-radius: 6px; padding: 8px 16px; cursor: pointer;
+    border: none; border-radius: 6px; padding: 7px 15px; cursor: pointer;
     font-size: 12.5px; font-weight: 500; font-family: inherit; letter-spacing: inherit;
-    transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+    transition: background 100ms, color 100ms, opacity 100ms;
   }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn.ghost { background: transparent; color: #ADA6A6; border: 1px solid transparent; }
-  .btn.ghost:hover:not(:disabled) { background: #251F25; color: #F0EDEA; border-color: #2B242B; }
-  .btn.save { background: #FF6F3C; color: #161216; border: 1px solid #FF6F3C; font-weight: 600; }
-  .btn.save:hover:not(:disabled) { background: #FF8456; border-color: #FF8456; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: #4A4248; }
+  .btn.ghost:hover:not(:disabled) { color: #ADA6A6; }
+  .btn.save { background: #FF6F3C; color: #110800; font-weight: 600; }
+  .btn.save:hover:not(:disabled) { background: #FF8456; }
+
   .err { color: #EF6F6C; font-size: 11.5px; margin-top: 10px; min-height: 16px; }
   .spinner {
     width: 11px; height: 11px; display: inline-block; vertical-align: -1px;
@@ -138,22 +170,6 @@ const SHADOW_CSS = `
   }
   @keyframes lce-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 1.6s; } }
-
-  .bar {
-    background: #161216; color: #F0EDEA;
-    border-bottom: 1px solid #3B323A;
-    padding: 8px 16px; font-size: 12.5px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .bar svg { color: #8A8386; flex-shrink: 0; }
-  .bar a { color: #97A3FF; text-decoration: none; font-weight: 500; }
-  .bar a:hover { text-decoration: underline; }
-  .bar .close {
-    margin-left: auto; cursor: pointer; color: #8A8386;
-    background: none; border: 0; font-size: 13px; font-family: inherit;
-    padding: 0 4px; line-height: 1;
-  }
-  .bar .close:hover { color: #F0EDEA; }
 `
 
 // ---------- rating overlay ----------
@@ -173,6 +189,7 @@ function RatingOverlay({
   const [mastered, setMastered] = useState(false)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
+  const [attempts, setAttempts] = useState(0)
   const textRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -199,13 +216,24 @@ function RatingOverlay({
         payload = { ...payload, ...enriched }
       }
     }
+    const attempt = attempts + 1
+    setAttempts(attempt)
     const res = await send({ type: 'recordSolve', payload })
-    setSaving(false)
-    if (isMsgError(res)) {
-      setErr(`Save failed — ${res.error}`)
+    if (!isMsgError(res)) {
+      onDone(true)
       return
     }
-    onDone(true)
+    // First failure: auto-retry once after a short delay (handles service worker restarts).
+    if (attempt === 1) {
+      await new Promise((r) => setTimeout(r, 1500))
+      const retry = await send({ type: 'recordSolve', payload })
+      if (!isMsgError(retry)) {
+        onDone(true)
+        return
+      }
+    }
+    setSaving(false)
+    setErr('Could not save — your solve is tracked locally. Try again or close to skip.')
   }
 
   return (
@@ -213,13 +241,14 @@ function RatingOverlay({
       <div className="backdrop">
         <div role="dialog" aria-modal="true" aria-label="Rate this solve" className="modal">
           <div className="kicker">
-            <span className="accepted">Accepted</span> — rate it
+            <span className="accepted">Accepted</span>
+            <span className="kicker-rest">— rate it</span>
           </div>
           <div className="name">{meta.title}</div>
 
           <div className="label">Confidence</div>
           <fieldset className="segs" aria-label="Confidence">
-            {[1, 2, 3, 4, 5].map((n) => (
+            {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((n) => (
               <button
                 key={n}
                 type="button"
@@ -227,7 +256,7 @@ function RatingOverlay({
                 className={`seg${confidence === n ? ' active' : ''}`}
                 onClick={() => setConfidence(n)}
               >
-                {n}
+                {n % 1 === 0 ? n : n.toFixed(1)}
               </button>
             ))}
           </fieldset>
@@ -260,6 +289,7 @@ function RatingOverlay({
             </label>
           </div>
 
+          <hr className="sep" />
           <div className="actions">
             <button
               type="button"
@@ -272,8 +302,10 @@ function RatingOverlay({
             <button type="button" className="btn save" disabled={saving} onClick={save}>
               {saving ? (
                 <>
-                  <span className="spinner" /> Saving…
+                  <span className="spinner" /> {attempts === 1 ? 'Retrying…' : 'Saving…'}
                 </>
+              ) : err ? (
+                'Try again'
               ) : (
                 'Save'
               )}
@@ -283,36 +315,6 @@ function RatingOverlay({
             {err}
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-// ---------- due banner ----------
-
-function DueBanner({ due, onClose }: { due: DueProblem[]; onClose: () => void }) {
-  const first = due[0]
-  if (!first) return null
-  return (
-    <div className="root">
-      <div className="bar">
-        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-          <circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
-          <path
-            d="M8 5v3l2 1.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.4"
-            strokeLinecap="round"
-          />
-        </svg>
-        <span>
-          {due.length} review{due.length === 1 ? '' : 's'} due —{' '}
-          <a href={first.url}>start with “{first.title}”</a>
-        </span>
-        <button type="button" className="close" title="Hide" aria-label="Hide" onClick={onClose}>
-          ×
-        </button>
       </div>
     </div>
   )
@@ -335,7 +337,6 @@ function makeShadowRoot(id: string, hostCss: string): { host: HTMLElement; root:
 }
 
 let overlayMount: { host: HTMLElement; root: Root } | null = null
-let bannerMount: { host: HTMLElement; root: Root } | null = null
 let processedAt = 0
 
 function destroyOverlay() {
@@ -343,14 +344,6 @@ function destroyOverlay() {
     overlayMount.root.unmount()
     overlayMount.host.remove()
     overlayMount = null
-  }
-}
-
-function destroyBanner() {
-  if (bannerMount) {
-    bannerMount.root.unmount()
-    bannerMount.host.remove()
-    bannerMount = null
   }
 }
 
@@ -367,26 +360,10 @@ function showRatingOverlay(accepted: AcceptedPayload) {
       <RatingOverlay
         meta={meta}
         accepted={accepted}
-        onDone={(saved) => {
+        onDone={() => {
           destroyOverlay()
-          if (saved) setTimeout(setupBanner, 500)
         }}
       />
-    </StrictMode>,
-  )
-}
-
-async function setupBanner() {
-  destroyBanner()
-  const due = await send({ type: 'getDueProblems', limit: 5 })
-  if (isMsgError(due) || !Array.isArray(due) || due.length === 0) return
-  bannerMount = makeShadowRoot(
-    'lce-banner-host',
-    'position:fixed;top:0;left:0;right:0;z-index:2147483646;',
-  )
-  bannerMount.root.render(
-    <StrictMode>
-      <DueBanner due={due} onClose={destroyBanner} />
     </StrictMode>,
   )
 }
@@ -415,15 +392,6 @@ function init() {
     }
   })
 
-  setupBanner()
-
-  let lastPath = location.pathname
-  setInterval(() => {
-    if (location.pathname !== lastPath) {
-      lastPath = location.pathname
-      setupBanner()
-    }
-  }, 1000)
 }
 
 init()
