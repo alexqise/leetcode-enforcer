@@ -104,36 +104,25 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 })
 
 /**
- * Chrome destroys ISOLATED-world content scripts on extension
- * reload/update and never re-injects into already-open tabs — solve
- * detection silently dies in any leetcode.com tab opened before the
- * update (the MAIN-world patch survives, so it posts to a dead room).
- * Re-inject the manifest's content scripts into existing LC tabs; the
- * scripts guard against double-injection.
+ * Chrome destroys ISOLATED-world content scripts on extension reload/update
+ * and never re-injects into already-open tabs. Reloading open LC tabs is the
+ * only reliable fix: it clears stale chunk references and lets Chrome inject
+ * fresh scripts from the current manifest. Re-injection attempts are blocked
+ * by crxjs's "already loaded" guard anyway, so skip straight to reload.
  */
 async function reinjectContentScripts(): Promise<void> {
   try {
     const tabs = await chrome.tabs.query({ url: 'https://leetcode.com/*' })
     if (tabs.length === 0) return
-    const decls = chrome.runtime.getManifest().content_scripts ?? []
     for (const tab of tabs) {
       if (tab.id == null) continue
-      for (const cs of decls) {
-        if (!cs.js?.length) continue
-        try {
-          // @types/chrome's manifest type predates the `world` field
-          const world = (cs as { world?: string }).world === 'MAIN' ? 'MAIN' : 'ISOLATED'
-          await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            files: cs.js,
-            world,
-          })
-        } catch (e) {
-          console.warn('[LCE] content-script reinject failed for tab', tab.id, e)
-        }
+      try {
+        await chrome.tabs.reload(tab.id)
+        console.log('[LCE] reloaded LC tab', tab.id, 'to pick up fresh content scripts')
+      } catch (e) {
+        console.warn('[LCE] tab reload failed', tab.id, e)
       }
     }
-    console.log('[LCE] re-injected content scripts into', tabs.length, 'leetcode tab(s)')
   } catch (e) {
     console.warn('[LCE] reinjectContentScripts failed', e)
   }
@@ -423,9 +412,16 @@ async function recordSolve(payload: SolvePayload): Promise<{ ok: true; problem: 
   await maybeAdvanceStreak()
   await syncBlockRules()
 
-  await syncProblemToSupabase(slug, updated)
-  await syncDailyStateToSupabase()
-  await syncProblemToGithub(updated, payload)
+  // Cloud syncs are best-effort — local write already committed above.
+  void Promise.allSettled([
+    syncProblemToSupabase(slug, updated),
+    syncDailyStateToSupabase(),
+    syncProblemToGithub(updated, payload),
+  ]).then((results) => {
+    for (const r of results) {
+      if (r.status === 'rejected') console.warn('[LCE] cloud sync failed', r.reason)
+    }
+  })
 
   return { ok: true, problem: updated }
 }
