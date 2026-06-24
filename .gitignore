@@ -10,3 +10,16 @@ dist/
 
 # compat symlink for the previously-loaded unpacked path (v2/dist)
 v2/
+
+.agents/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.trae/
+.trae-cn/
+.pi/
+.opencode/
+.kiro/
+.rovodev/
+.impeccable/
