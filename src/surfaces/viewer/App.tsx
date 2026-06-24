@@ -1,20 +1,17 @@
-// Viewer — rethought for v2 (SPEC §4): review-queue-first dashboard as
-// the landing view, with the full Linear-style problem table one tab
-// away. Viewport-locked layout (design.md §7) in table view.
+// Viewer — open problems document under a banner header (design.md §5.15,
+// §7). The full sortable/filterable table is the surface; no queue tab.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BannerScene } from '../../components/BannerScene'
 import { BrandIcon, GearIcon, GoogleIcon } from '../../components/icons'
 import { Spinner } from '../../components/Spinner'
 import { DEFAULT_SETTINGS, DEFAULT_STATE } from '../../engine/storage'
 import type { ProblemMap, Settings, State } from '../../engine/types'
 import { isMsgError, send } from '../../messages'
-import { QueueView } from './QueueView'
 import { toRows } from './rows'
 import { TableView } from './TableView'
 
 const OPTIONS_PATH = 'src/surfaces/options/index.html'
-
-type View = 'queue' | 'table'
 
 interface ViewerData {
   problems: ProblemMap
@@ -55,9 +52,9 @@ function useViewerData() {
 
 export function App() {
   const [gate, setGate] = useState<'checking' | 'signedOut' | 'in'>('checking')
-  const [view, setView] = useState<View>('queue')
   const [focusSearch, setFocusSearch] = useState(0)
   const data = useViewerData()
+  const rows = useMemo(() => toRows(data?.problems ?? {}), [data])
 
   useEffect(() => {
     send({ type: 'getAuthState' }).then((res) => {
@@ -65,12 +62,10 @@ export function App() {
     })
   }, [])
 
-  // ⌘K from anywhere: jump to the table and focus search
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        setView('table')
         setFocusSearch((n) => n + 1)
       }
     }
@@ -78,49 +73,37 @@ export function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  const rows = useMemo(() => toRows(data?.problems ?? {}), [data])
-
   if (gate === 'checking') return null
   if (gate === 'signedOut') return <AuthGate onSignedIn={() => setGate('in')} />
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-6 py-3">
-        <div className="flex items-center gap-5">
-          <div className="flex items-center gap-2 text-[13.5px] font-semibold tracking-[-0.015em] text-fg">
+    <div className="flex min-h-screen flex-col">
+      <BannerScene>
+        <header className="absolute inset-x-0 top-0 flex items-center justify-between px-10 py-5 max-sm:px-5 max-sm:py-4">
+          <span className="text-[13.5px] font-semibold tracking-[-0.015em] text-[#F4F1F6]">
             Problems
+          </span>
+          <div className="flex items-center gap-3">
+            {data && (
+              <span className="rounded-full border border-[rgba(255,255,255,0.14)] bg-[rgba(22,18,22,0.45)] px-2.5 py-1 text-[11px] font-medium tracking-[-0.003em] text-[#F4F1F6] backdrop-blur-[6px]">
+                {rows.length} tracked
+              </span>
+            )}
+            <a
+              href={chrome.runtime.getURL(OPTIONS_PATH)}
+              title="Settings"
+              aria-label="Settings"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-[rgba(244,241,246,0.65)] transition-colors duration-100 hover:bg-[rgba(255,255,255,0.08)] hover:text-[#F4F1F6]"
+            >
+              <GearIcon />
+            </a>
           </div>
-          <nav aria-label="View" className="flex gap-1">
-            <ViewTab active={view === 'queue'} onClick={() => setView('queue')}>
-              Queue
-            </ViewTab>
-            <ViewTab active={view === 'table'} onClick={() => setView('table')}>
-              All problems
-            </ViewTab>
-          </nav>
-        </div>
-        <a
-          href={chrome.runtime.getURL(OPTIONS_PATH)}
-          title="Settings"
-          aria-label="Settings"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-fg-3 transition-colors duration-100 hover:bg-surface-2 hover:text-fg"
-        >
-          <GearIcon />
-        </a>
-      </header>
+        </header>
+      </BannerScene>
 
       {!data ? (
-        <div className="grid flex-1 place-items-center">
+        <div className="grid min-h-[40vh] place-items-center">
           <Spinner className="text-fg-3" />
-        </div>
-      ) : view === 'queue' ? (
-        <div className="min-h-0 flex-1 overflow-auto">
-          <QueueView
-            rows={rows}
-            state={data.state}
-            settings={data.settings}
-            onOpenTable={() => setView('table')}
-          />
         </div>
       ) : (
         <TableView rows={rows} focusSearch={focusSearch} />
@@ -128,33 +111,6 @@ export function App() {
     </div>
   )
 }
-
-function ViewTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`cursor-pointer rounded-md border px-3 py-1.5 text-xs font-medium transition-colors duration-100 ${
-        active
-          ? 'border-border-2 bg-surface-2 text-fg'
-          : 'border-transparent bg-transparent text-fg-3 hover:text-fg-2'
-      }`}
-    >
-      {children}
-    </button>
-  )
-}
-
-// ---------- auth gate ----------
 
 function AuthGate({ onSignedIn }: { onSignedIn: () => void }) {
   const [busy, setBusy] = useState(false)
@@ -175,30 +131,33 @@ function AuthGate({ onSignedIn }: { onSignedIn: () => void }) {
 
   return (
     <div className="grid min-h-screen place-items-center px-6">
-      <div className="max-w-[360px] text-center">
+      <div className="max-w-[440px] text-center">
         <div
           aria-hidden="true"
-          className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl border border-border-2 bg-surface text-fg-2"
+          className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-lg border border-border-2 bg-surface text-fg-2"
         >
           <BrandIcon size={22} />
         </div>
-        <h1 className="m-0 mb-2 text-[19px] font-semibold tracking-[-0.02em] text-fg">
+        <h1 className="m-0 mb-2 text-[22px] font-semibold tracking-[-0.02em] text-fg">
           Sign in to view your problems
         </h1>
-        <p className="m-0 mb-6 text-[12.5px] leading-[1.55] tracking-[-0.003em] text-fg-3">
+        <p className="m-0 mb-7 text-[13.5px] leading-[1.55] tracking-[-0.003em] text-fg-2">
           Your tracked work is privately synced to your Google account.
         </p>
         <button
           type="button"
           disabled={busy}
           onClick={signIn}
-          className="mx-auto flex cursor-pointer items-center gap-2.5 rounded-md border border-border-2 bg-surface-2 px-5 py-2.5 text-[13px] font-semibold tracking-[-0.003em] text-fg transition-colors duration-100 hover:enabled:border-fg-3 hover:enabled:bg-surface-3 disabled:cursor-not-allowed disabled:opacity-60"
+          className="mx-auto flex cursor-pointer items-center gap-2.5 rounded-md border border-border-2 bg-fg px-5 py-2.5 text-[14px] font-semibold tracking-[-0.003em] text-bg transition-colors duration-100 hover:enabled:bg-[#FFFCF7] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {busy ? <Spinner /> : <GoogleIcon />}
           {busy ? 'Signing in…' : 'Continue with Google'}
         </button>
         {err && (
-          <div role="alert" className="mt-4 text-[11.5px] text-hard">
+          <div
+            role="alert"
+            className="mx-auto mt-4 max-w-[360px] rounded-md border border-[rgba(239,111,108,0.2)] bg-[rgba(239,111,108,0.08)] px-3 py-2 text-[11.5px] text-hard"
+          >
             {err}
           </div>
         )}
