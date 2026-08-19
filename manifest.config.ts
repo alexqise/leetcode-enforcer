@@ -17,8 +17,6 @@ export default defineManifest({
     'identity',
     'alarms',
     'tabs',
-    'scripting',
-    'notifications',
     'declarativeNetRequest',
     'declarativeNetRequestWithHostAccess',
     'webNavigation',
